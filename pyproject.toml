@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claws"
-version = "0.3.0"
+version = "0.4.0"
 description = "Controlled excavation tools for agents on Amazon Bedrock AgentCore"
 readme = "README.md"
 license = "Apache-2.0"
@@ -57,6 +57,7 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]
 module = ["tools.*.tests.*", "tools.conftest"]

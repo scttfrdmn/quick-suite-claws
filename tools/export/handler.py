@@ -4,9 +4,14 @@ Export payload is scanned via ApplyGuardrail as a final content gate.
 Provenance chain is included when requested.
 """
 
+import hashlib
+import hmac
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any
+
+import boto3
 
 from tools.shared import (
     audit_log,
@@ -17,6 +22,16 @@ from tools.shared import (
     scan_payload,
     success,
 )
+
+EVENTS_CLIENT = None
+CALLBACK_SECRET = os.environ.get("CLAWS_CALLBACK_SECRET", "")
+
+
+def _events_client() -> Any:
+    global EVENTS_CLIENT
+    if EVENTS_CLIENT is None:
+        EVENTS_CLIENT = boto3.client("events")
+    return EVENTS_CLIENT
 
 
 def handler(event: dict, context: Any) -> dict:
@@ -138,12 +153,51 @@ def _export_to_s3(uri: str, payload: Any, provenance: dict | None, export_id: st
 
 
 def _export_to_eventbridge(uri: str, payload: Any, export_id: str) -> dict:
-    """Export results as an EventBridge event."""
-    # TODO: Implement EventBridge PutEvents
-    return {"status": "error", "error": "EventBridge export not yet implemented"}
+    """Export results as an EventBridge event.
+
+    URI format: events://event-bus-name/detail-type
+    """
+    remainder = uri.replace("events://", "", 1)
+    parts = remainder.split("/", 1)
+    event_bus = parts[0]
+    detail_type = parts[1] if len(parts) > 1 else "ClawsExportReady"
+
+    try:
+        response = _events_client().put_events(Entries=[{
+            "Source": "claws",
+            "DetailType": detail_type,
+            "Detail": json.dumps({
+                "export_id": export_id,
+                "row_count": len(payload) if isinstance(payload, list) else 1,
+                "payload": payload,
+            }, default=str),
+            "EventBusName": event_bus,
+        }])
+        failed = response.get("FailedEntryCount", 0)
+        if failed > 0:
+            return {"status": "error", "error": f"{failed} EventBridge entries failed"}
+        return {"status": "complete", "event_bus": event_bus, "detail_type": detail_type}
+    except Exception as e:
+        return {"status": "error", "error": f"EventBridge export failed: {e}"}
 
 
 def _export_to_callback(uri: str, payload: Any, export_id: str) -> dict:
-    """Export results via HTTP callback."""
-    # TODO: Implement callback with signature verification
-    return {"status": "error", "error": "Callback export not yet implemented"}
+    """Export results via HTTP POST callback with optional HMAC-SHA256 signature.
+
+    Set CLAWS_CALLBACK_SECRET env var to enable X-Claws-Signature header.
+    """
+    import requests as _requests  # noqa: PLC0415
+
+    body = json.dumps({"export_id": export_id, "payload": payload}, default=str)
+    headers: dict = {"Content-Type": "application/json", "X-Claws-Export-Id": export_id}
+
+    if CALLBACK_SECRET:
+        sig = hmac.new(CALLBACK_SECRET.encode(), body.encode(), hashlib.sha256).hexdigest()
+        headers["X-Claws-Signature"] = f"sha256={sig}"
+
+    try:
+        resp = _requests.post(uri, data=body, headers=headers, timeout=10)
+        resp.raise_for_status()
+        return {"status": "complete", "http_status": resp.status_code}
+    except Exception as e:
+        return {"status": "error", "error": f"Callback export failed: {e}"}

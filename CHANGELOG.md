@@ -7,6 +7,14 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-01
+
+### Added
+- `export._export_to_eventbridge()`: publishes results to an EventBridge event bus; URI format `events://bus-name/detail-type`; checks `FailedEntryCount`; `EVENTS_CLIENT` singleton + `_events_client()` lazy init (#20)
+- `export._export_to_callback()`: POSTs results to an HTTPS callback URL; optional HMAC-SHA256 `X-Claws-Signature` header when `CLAWS_CALLBACK_SECRET` env var is set (#21)
+- CDK `ClawsToolsStack`: `events:PutEvents` IAM policy for EventBridge export destination (#20)
+- 6 new tests (105 total): `TestEventBridgeExport` (3), `TestCallbackExport` (3)
+
 ## [0.3.0] - 2026-04-01
 
 ### Added
@@ -52,7 +60,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 - Architecture, safety model, and Quick Suite integration design docs
 - Example workflows: genomics excavation, log analysis, document mining
 
-[Unreleased]: https://github.com/scttfrdmn/claws/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/scttfrdmn/claws/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/scttfrdmn/claws/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/scttfrdmn/claws/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scttfrdmn/claws/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scttfrdmn/claws/releases/tag/v0.1.0

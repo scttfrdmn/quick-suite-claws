@@ -102,6 +102,13 @@ class ClawsToolsStack(cdk.Stack):
             conditions={"StringEquals": {"cloudwatch:namespace": "claws"}},
         ))
 
+        # EventBridge export destination
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["events:PutEvents"],
+            resources=["*"],
+        ))
+
         # Shared environment variables
         shared_env = {
             "CLAWS_RUNS_BUCKET": storage_stack.runs_bucket.bucket_name,
