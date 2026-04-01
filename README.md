@@ -1,5 +1,11 @@
 # clAWS — Controlled Excavation Tools for Agents
 
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Amazon%20Bedrock%20AgentCore-FF9900.svg?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/bedrock/)
+[![Policy](https://img.shields.io/badge/policy-Cedar-green.svg)](https://www.cedarpolicy.com/)
+[![CDK](https://img.shields.io/badge/infra-CDK%20v2-FF9900.svg?logo=amazon-aws&logoColor=white)](https://docs.aws.amazon.com/cdk/v2/guide/home.html)
+
 **Safe data excavation on Amazon Bedrock AgentCore.**
 
 When an agent can generate arbitrary SQL against a production database, call costs are

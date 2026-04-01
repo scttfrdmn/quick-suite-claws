@@ -27,7 +27,7 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
-    "pytest-substrate @ file:///Users/scttfrdmn/src/substrate/python",
+    "pytest-substrate @ file:///Users/scttfrdmn/src/substrate/python",  # requires substrate server >=0.45.3
 ]
 
 cdk = [
