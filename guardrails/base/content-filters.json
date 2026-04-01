@@ -1,0 +1,11 @@
+{
+  "description": "Content filters for clAWS base guardrail",
+  "filters": [
+    {"type": "SEXUAL", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+    {"type": "VIOLENCE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+    {"type": "HATE", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+    {"type": "INSULTS", "inputStrength": "MEDIUM", "outputStrength": "MEDIUM"},
+    {"type": "MISCONDUCT", "inputStrength": "HIGH", "outputStrength": "HIGH"},
+    {"type": "PROMPT_ATTACK", "inputStrength": "HIGH", "outputStrength": "NONE"}
+  ]
+}

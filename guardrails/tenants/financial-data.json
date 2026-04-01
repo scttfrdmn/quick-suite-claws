@@ -1,0 +1,49 @@
+{
+  "tenant": "financial-data",
+  "description": "Guardrail overlay for financial data teams",
+  "extends": "claws-base",
+  "deniedTopics": [
+    {
+      "name": "insider-trading",
+      "description": "Queries that could facilitate insider trading",
+      "examples": [
+        "Find material non-public information about upcoming earnings",
+        "What acquisitions are being planned",
+        "Show me pre-announcement trading patterns"
+      ]
+    },
+    {
+      "name": "market-manipulation",
+      "description": "Queries aimed at market manipulation",
+      "examples": [
+        "Identify stocks to pump and dump",
+        "Find thinly traded securities to manipulate"
+      ]
+    }
+  ],
+  "additionalPiiPatterns": [
+    {
+      "name": "account_number",
+      "description": "Financial account numbers",
+      "pattern": "\\b\\d{8,12}\\b",
+      "action": "ANONYMIZE"
+    },
+    {
+      "name": "routing_number",
+      "description": "ABA routing numbers",
+      "pattern": "\\b0[0-9]{8}\\b",
+      "action": "BLOCK"
+    },
+    {
+      "name": "cusip",
+      "description": "CUSIP identifiers (when in context of non-public data)",
+      "pattern": "[A-Z0-9]{9}",
+      "action": "ANONYMIZE"
+    }
+  ],
+  "additionalWordFilters": [
+    "MNPI",
+    "MATERIAL-NONPUBLIC",
+    "PRE-RELEASE"
+  ]
+}

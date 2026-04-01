@@ -1,0 +1,38 @@
+{
+  "tenant": "genomics-research",
+  "description": "Guardrail overlay for genomics research teams",
+  "extends": "claws-base",
+  "deniedTopics": [
+    {
+      "name": "participant-reidentification",
+      "description": "Attempts to re-identify study participants from genomic data",
+      "examples": [
+        "Find the identity of the patient with this variant",
+        "Cross-reference variants with public genealogy databases",
+        "Match this sample to a specific individual"
+      ]
+    },
+    {
+      "name": "germline-discrimination",
+      "description": "Using germline data for discriminatory purposes",
+      "examples": [
+        "Identify employees with genetic predisposition to disease",
+        "Screen candidates based on genetic markers"
+      ]
+    }
+  ],
+  "additionalPiiPatterns": [
+    {
+      "name": "study_participant_id",
+      "description": "Study participant identifiers",
+      "pattern": "SUBJ[-_]?\\d{4,8}",
+      "action": "ANONYMIZE"
+    },
+    {
+      "name": "biobank_sample_id",
+      "description": "Biobank sample identifiers",
+      "pattern": "BB[-_]\\d{6,10}",
+      "action": "ANONYMIZE"
+    }
+  ]
+}

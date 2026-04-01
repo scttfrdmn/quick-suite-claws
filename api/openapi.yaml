@@ -1,0 +1,386 @@
+openapi: 3.1.0
+info:
+  title: clAWS Excavation API
+  description: |
+    Safe excavation tools for agents on Amazon Bedrock AgentCore.
+    Each operation is backed by a Lambda handler and gated by Cedar
+    policies at the AgentCore Gateway boundary.
+  version: 0.1.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+paths:
+  /discover:
+    post:
+      operationId: discoverSources
+      summary: Find data sources matching a topic within approved domains
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverRequest'
+      responses:
+        '200':
+          description: Ranked source descriptors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverResponse'
+
+  /probe:
+    post:
+      operationId: probeSource
+      summary: Inspect a discovered source — schema, samples, cost estimates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProbeRequest'
+      responses:
+        '200':
+          description: Source metadata and samples
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProbeResponse'
+
+  /plan:
+    post:
+      operationId: planExcavation
+      summary: Translate a free-text objective into a concrete execution plan
+      description: |
+        The only tool that accepts a free-text objective. Returns a concrete
+        query, cost estimate, and output schema without executing anything.
+        LLM reasoning happens here; Bedrock Guardrails filters input and output.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '200':
+          description: Concrete execution plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+
+  /excavate:
+    post:
+      operationId: excavate
+      summary: Execute a concrete query from a plan
+      description: |
+        No free-text objectives. Takes exactly what the plan tool produced.
+        If plan_id is provided, the executor validates the query matches the plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExcavateRequest'
+      responses:
+        '200':
+          description: Query results with cost and provenance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcavateResponse'
+
+  /refine:
+    post:
+      operationId: refineResults
+      summary: Post-process a result set — dedupe, rank, filter, summarize
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefineRequest'
+      responses:
+        '200':
+          description: Refined result with operation manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefineResponse'
+
+  /export:
+    post:
+      operationId: exportResults
+      summary: Materialize results to an approved destination
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '200':
+          description: Export confirmation with provenance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportResponse'
+
+components:
+  schemas:
+    # --- Discover ---
+    DiscoverRequest:
+      type: object
+      required: [query, scope]
+      properties:
+        query:
+          type: string
+          description: Natural language topic to search for
+          example: "genomics variant annotations"
+        scope:
+          type: object
+          required: [domains, spaces]
+          properties:
+            domains:
+              type: array
+              items:
+                type: string
+                enum: [s3, athena, opensearch, dynamodb, rds]
+              description: Backend domains to search
+            spaces:
+              type: array
+              items:
+                type: string
+              description: Logical data spaces (must be in principal's allowlist)
+        limit:
+          type: integer
+          default: 10
+          maximum: 100
+
+    DiscoverResponse:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceDescriptor'
+
+    SourceDescriptor:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Qualified source ID, e.g. athena:oncology.variant_index"
+        kind:
+          type: string
+          enum: [table, index, bucket, collection, database]
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        reason:
+          type: string
+
+    # --- Probe ---
+    ProbeRequest:
+      type: object
+      required: [source_id, mode]
+      properties:
+        source_id:
+          type: string
+        mode:
+          type: string
+          enum: [schema_only, schema_and_samples, cost_estimate, full]
+        sample_rows:
+          type: integer
+          default: 5
+          maximum: 100
+
+    ProbeResponse:
+      type: object
+      properties:
+        source_id:
+          type: string
+        schema:
+          type: object
+          description: Column definitions with types
+        samples:
+          type: array
+          items:
+            type: object
+        row_count_estimate:
+          type: integer
+        size_bytes_estimate:
+          type: integer
+        cost_estimates:
+          type: object
+          description: Estimated cost for common query patterns
+
+    # --- Plan ---
+    PlanRequest:
+      type: object
+      required: [objective, source_id]
+      properties:
+        objective:
+          type: string
+          description: Free-text description of what to find/compute
+        source_id:
+          type: string
+        constraints:
+          $ref: '#/components/schemas/ExcavationConstraints'
+
+    ExcavationConstraints:
+      type: object
+      properties:
+        max_cost_dollars:
+          type: number
+          description: Maximum acceptable cost for the excavation
+        max_bytes_scanned:
+          type: integer
+        timeout_seconds:
+          type: integer
+          default: 30
+          maximum: 300
+        read_only:
+          type: boolean
+          default: true
+
+    PlanResponse:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        status:
+          type: string
+          enum: [ready, rejected, blocked]
+        reason:
+          type: string
+          description: Present when status is rejected or blocked
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanStep'
+        estimated_cost:
+          type: string
+        estimated_bytes_scanned:
+          type: integer
+        output_schema:
+          type: object
+
+    PlanStep:
+      type: object
+      properties:
+        tool:
+          type: string
+          enum: [claws.excavate]
+        input:
+          type: object
+          description: Concrete input for the tool (ready to submit)
+
+    # --- Excavate ---
+    ExcavateRequest:
+      type: object
+      required: [source_id, query, query_type, constraints]
+      properties:
+        plan_id:
+          type: string
+          description: Links to the approved plan (recommended)
+        source_id:
+          type: string
+        query:
+          type: string
+          description: The concrete query string to execute
+        query_type:
+          type: string
+          enum: [athena_sql, opensearch_dsl, s3_select_sql, dynamodb_partiql]
+        constraints:
+          $ref: '#/components/schemas/ExcavationConstraints'
+
+    ExcavateResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+        status:
+          type: string
+          enum: [complete, timeout, error, blocked]
+        rows_returned:
+          type: integer
+        bytes_scanned:
+          type: integer
+        cost:
+          type: string
+        result_uri:
+          type: string
+          description: S3 URI to full results
+        result_preview:
+          type: array
+          items:
+            type: object
+          description: First few rows as preview
+
+    # --- Refine ---
+    RefineRequest:
+      type: object
+      required: [run_id, operations]
+      properties:
+        run_id:
+          type: string
+        operations:
+          type: array
+          items:
+            type: string
+            enum: [dedupe, rank, filter, summarize, normalize]
+        top_k:
+          type: integer
+          default: 25
+          maximum: 1000
+        output_format:
+          type: string
+          enum: [json, csv, parquet]
+          default: json
+
+    RefineResponse:
+      type: object
+      properties:
+        run_id:
+          type: string
+        refined_uri:
+          type: string
+        manifest:
+          type: object
+          description: What each operation did (rows before/after, criteria)
+
+    # --- Export ---
+    ExportRequest:
+      type: object
+      required: [run_id, destination]
+      properties:
+        run_id:
+          type: string
+        destination:
+          type: object
+          required: [type, uri]
+          properties:
+            type:
+              type: string
+              enum: [s3, eventbridge, callback]
+            uri:
+              type: string
+        include_provenance:
+          type: boolean
+          default: true
+
+    ExportResponse:
+      type: object
+      properties:
+        export_id:
+          type: string
+        status:
+          type: string
+          enum: [complete, blocked, pending_approval]
+        destination_uri:
+          type: string
+        provenance_uri:
+          type: string
+          description: URI to full provenance chain if include_provenance was true

@@ -1,0 +1,63 @@
+# clAWS AgentCore Gateway Configuration
+#
+# Register clAWS tools with AgentCore Gateway.
+# Each tool is backed by a Lambda function and exposed
+# as an MCP-compatible tool through Gateway.
+#
+# Deploy with:
+#   aws bedrock-agentcore register-tools \
+#     --gateway-id <gateway-id> \
+#     --config file://infra/agentcore/gateway-config.yaml
+
+gateway:
+  name: claws-gateway
+  description: clAWS excavation tool plane
+
+  # OpenAPI spec defines the tool schemas
+  openapi_spec: ../../api/openapi.yaml
+
+  # Cedar policy association
+  policy: claws-default
+
+  tools:
+    - name: claws.discover
+      description: Find data sources matching a topic within approved domains
+      operation_id: discoverSources
+      backend:
+        type: lambda
+        function_name: claws-discover
+
+    - name: claws.probe
+      description: Inspect a discovered source — schema, samples, cost estimates
+      operation_id: probeSource
+      backend:
+        type: lambda
+        function_name: claws-probe
+
+    - name: claws.plan
+      description: Translate a free-text objective into a concrete execution plan
+      operation_id: planExcavation
+      backend:
+        type: lambda
+        function_name: claws-plan
+
+    - name: claws.excavate
+      description: Execute a concrete query from a plan
+      operation_id: excavate
+      backend:
+        type: lambda
+        function_name: claws-excavate
+
+    - name: claws.refine
+      description: Post-process a result set — dedupe, rank, filter, summarize
+      operation_id: refineResults
+      backend:
+        type: lambda
+        function_name: claws-refine
+
+    - name: claws.export
+      description: Materialize results to an approved destination
+      operation_id: exportResults
+      backend:
+        type: lambda
+        function_name: claws-export

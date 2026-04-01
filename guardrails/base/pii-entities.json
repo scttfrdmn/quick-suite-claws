@@ -1,0 +1,42 @@
+{
+  "description": "PII/PHI entity detection for clAWS base guardrail",
+  "piiEntities": [
+    {"type": "US_SOCIAL_SECURITY_NUMBER", "action": "BLOCK"},
+    {"type": "CREDIT_DEBIT_CARD_NUMBER", "action": "BLOCK"},
+    {"type": "CREDIT_DEBIT_CARD_CVV", "action": "BLOCK"},
+    {"type": "CREDIT_DEBIT_CARD_EXPIRY", "action": "BLOCK"},
+    {"type": "PIN", "action": "BLOCK"},
+    {"type": "PASSWORD", "action": "BLOCK"},
+    {"type": "AWS_ACCESS_KEY", "action": "BLOCK"},
+    {"type": "AWS_SECRET_KEY", "action": "BLOCK"},
+    {"type": "US_INDIVIDUAL_TAX_IDENTIFICATION_NUMBER", "action": "BLOCK"},
+    {"type": "EMAIL", "action": "ANONYMIZE"},
+    {"type": "PHONE", "action": "ANONYMIZE"},
+    {"type": "NAME", "action": "ANONYMIZE"},
+    {"type": "ADDRESS", "action": "ANONYMIZE"},
+    {"type": "AGE", "action": "ANONYMIZE"},
+    {"type": "DATE_TIME", "action": "ANONYMIZE"},
+    {"type": "IP_ADDRESS", "action": "ANONYMIZE"},
+    {"type": "URL", "action": "ANONYMIZE"}
+  ],
+  "regexes": [
+    {
+      "name": "internal_project_code",
+      "description": "Internal project identifiers (PRJ-XXXXXX)",
+      "pattern": "PRJ-\\d{6}",
+      "action": "ANONYMIZE"
+    },
+    {
+      "name": "medical_record_number",
+      "description": "Medical record numbers",
+      "pattern": "MRN[-:]?\\s?\\d{6,10}",
+      "action": "BLOCK"
+    },
+    {
+      "name": "aws_account_id",
+      "description": "AWS account IDs (12 digits)",
+      "pattern": "\\b\\d{12}\\b",
+      "action": "ANONYMIZE"
+    }
+  ]
+}
