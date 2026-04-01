@@ -20,7 +20,14 @@ TOOL_NAMES = ["discover", "probe", "plan", "excavate", "refine", "export"]
 
 
 class ClawsGatewayStack(cdk.Stack):
-    def __init__(self, scope: Construct, id: str, tools_stack, **kwargs):
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        tools_stack,
+        shared_gateway_id: str | None = None,
+        **kwargs,
+    ):
         super().__init__(scope, id, **kwargs)
 
         # IAM role for the AwsCustomResource provider Lambda
@@ -44,30 +51,38 @@ class ClawsGatewayStack(cdk.Stack):
             resources=["*"],
         ))
 
-        # Create the AgentCore Gateway (AgentRuntime)
-        gateway_resource = cr.AwsCustomResource(
-            self, "ClawsGateway",
-            on_create=cr.AwsSdkCall(
-                service="BedrockAgentCore",
-                action="createAgentRuntime",
-                parameters={
-                    "agentRuntimeName": "claws-gateway",
-                    "description": "clAWS secure data excavation tool plane",
-                },
-                physical_resource_id=cr.PhysicalResourceId.from_response("agentRuntimeId"),
-            ),
-            on_delete=cr.AwsSdkCall(
-                service="BedrockAgentCore",
-                action="deleteAgentRuntime",
-                parameters={
-                    "agentRuntimeId": cr.PhysicalResourceIdReference(),
-                },
-            ),
-            role=provider_role,
-        )
+        if shared_gateway_id:
+            # Capstone mode: attach to an existing Gateway rather than creating one
+            self.gateway_id = shared_gateway_id
+            self.gateway_arn = (
+                f"arn:aws:bedrock-agentcore:{self.region}:{self.account}"
+                f":agent-runtime/{shared_gateway_id}"
+            )
+        else:
+            # Standalone mode: create a new AgentCore Gateway (AgentRuntime)
+            gateway_resource = cr.AwsCustomResource(
+                self, "ClawsGateway",
+                on_create=cr.AwsSdkCall(
+                    service="BedrockAgentCore",
+                    action="createAgentRuntime",
+                    parameters={
+                        "agentRuntimeName": "claws-gateway",
+                        "description": "clAWS secure data excavation tool plane",
+                    },
+                    physical_resource_id=cr.PhysicalResourceId.from_response("agentRuntimeId"),
+                ),
+                on_delete=cr.AwsSdkCall(
+                    service="BedrockAgentCore",
+                    action="deleteAgentRuntime",
+                    parameters={
+                        "agentRuntimeId": cr.PhysicalResourceIdReference(),
+                    },
+                ),
+                role=provider_role,
+            )
 
-        self.gateway_id = gateway_resource.get_response_field("agentRuntimeId")
-        self.gateway_arn = gateway_resource.get_response_field("agentRuntimeArn")
+            self.gateway_id = gateway_resource.get_response_field("agentRuntimeId")
+            self.gateway_arn = gateway_resource.get_response_field("agentRuntimeArn")
 
         # Register each tool Lambda as a Gateway endpoint
         for tool_name in TOOL_NAMES:

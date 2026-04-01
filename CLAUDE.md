@@ -147,8 +147,8 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - Cost estimator with Athena pricing model, partition pruning heuristics
 - Guardrail scanning (ApplyGuardrail API integration in shared.py)
 - Plan-to-execution linkage (plan_id validation in excavate)
-- CDK stacks for all infrastructure
-- 145 passing tests
+- CDK stacks for all infrastructure, including Capstone mode (shared Gateway)
+- 155 passing tests
 
 ## Work tracking
 
@@ -158,7 +158,7 @@ https://github.com/scttfrdmn/claws/milestones
 Current milestones:
 - **v0.4.1** — OpenSearch aggregation flattening + executor tests
 - **v0.5.0** — MCP extensibility (issues #22–#27)
-- **v0.6.0** — Capstone integration (issues #28–#29)
+- **v0.6.0** — Capstone integration (issues #33–#34) ✓ complete
 
 ## Design docs
 

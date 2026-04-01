@@ -30,9 +30,14 @@ tools = ClawsToolsStack(
 )
 
 # AgentCore Gateway — depends on tools
+# Pass CLAWS_GATEWAY_ID context var to reuse an existing Gateway (Capstone mode).
+# Example: cdk deploy -c CLAWS_GATEWAY_ID=agr-abc123
+shared_gateway_id = app.node.try_get_context("CLAWS_GATEWAY_ID") or None
+
 gateway = ClawsGatewayStack(
     app, "ClawsGatewayStack",
     tools_stack=tools,
+    shared_gateway_id=shared_gateway_id,
     env=env,
 )
 
