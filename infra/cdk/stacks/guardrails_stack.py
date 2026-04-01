@@ -1,6 +1,5 @@
 """clAWS Guardrails Stack — Bedrock Guardrail configurations."""
 
-import json
 
 import aws_cdk as cdk
 from aws_cdk import aws_bedrock as bedrock

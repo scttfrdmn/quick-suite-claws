@@ -48,6 +48,7 @@ def handler(event: dict, context: Any) -> dict:
     mode = body.get("mode", "schema_only")
     sample_rows = body.get("sample_rows", 5)
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not source_id:
         return error("source_id is required")
@@ -80,7 +81,7 @@ def handler(event: dict, context: Any) -> dict:
     audit_log("probe", principal, body, {
         "schema_columns": len(result.get("schema", {}).get("columns", [])),
         "samples_returned": len(result.get("samples", [])),
-    })
+    }, request_id=request_id)
 
     return success(result)
 

@@ -13,6 +13,7 @@ import boto3
 _s3 = None
 _dynamodb = None
 _bedrock = None
+_cloudwatch = None
 
 
 def s3_client() -> Any:
@@ -36,6 +37,13 @@ def bedrock_runtime() -> Any:
     return _bedrock
 
 
+def cloudwatch_client() -> Any:
+    global _cloudwatch
+    if _cloudwatch is None:
+        _cloudwatch = boto3.client("cloudwatch")
+    return _cloudwatch
+
+
 # --- Configuration ---
 
 RUNS_BUCKET = os.environ.get("CLAWS_RUNS_BUCKET", "claws-runs")
@@ -43,9 +51,32 @@ PLANS_TABLE = os.environ.get("CLAWS_PLANS_TABLE", "claws-plans")
 SCHEMAS_TABLE = os.environ.get("CLAWS_SCHEMAS_TABLE", "claws-schemas")
 GUARDRAIL_ID = os.environ.get("CLAWS_GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("CLAWS_GUARDRAIL_VERSION", "DRAFT")
+METRICS_NAMESPACE = os.environ.get("CLAWS_METRICS_NAMESPACE", "")
 
 
 # --- ID generation ---
+
+def emit_metric(
+    metric_name: str,
+    value: float,
+    unit: str,
+    dimensions: list[dict] | None = None,
+) -> None:
+    """Emit a CloudWatch metric data point.
+
+    Skipped when CLAWS_METRICS_NAMESPACE is unset (dev/test safety).
+    Failures are swallowed — metrics must never break a tool call.
+    """
+    if not METRICS_NAMESPACE:
+        return
+    try:
+        metric: dict = {"MetricName": metric_name, "Value": value, "Unit": unit}
+        if dimensions:
+            metric["Dimensions"] = dimensions
+        cloudwatch_client().put_metric_data(Namespace=METRICS_NAMESPACE, MetricData=[metric])
+    except Exception as e:
+        print(json.dumps({"level": "warn", "msg": "emit_metric failed", "error": str(e)}))
+
 
 def new_plan_id() -> str:
     return f"plan-{uuid.uuid4().hex[:8]}"
@@ -61,21 +92,43 @@ def new_export_id() -> str:
 
 # --- Audit logging ---
 
-def audit_log(tool: str, principal: str, inputs: dict, outputs: dict,
-              cost: float | None = None, guardrail_trace: dict | None = None) -> None:
+def audit_log(
+    tool: str,
+    principal: str,
+    inputs: dict,
+    outputs: dict,
+    cost: float | None = None,
+    guardrail_trace: dict | None = None,
+    request_id: str = "",
+) -> None:
     """Write a structured audit record. In production this goes to
     CloudWatch Logs / S3 / OpenSearch for compliance."""
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
         "tool": tool,
         "principal": principal,
+        "request_id": request_id,
         "inputs": inputs,
         "outputs": {k: v for k, v in outputs.items() if k != "result_preview"},
         "cost": cost,
         "guardrail_trace": guardrail_trace,
     }
-    # For now, structured print — CloudWatch picks this up
     print(json.dumps(record, default=str))
+
+    # Emit CloudWatch metrics — skipped when CLAWS_METRICS_NAMESPACE not set
+    _status = outputs.get("status", "complete")
+    _dims = [{"Name": "Tool", "Value": tool}]
+    emit_metric("Invocations", 1.0, "Count", _dims)
+    if _status == "error":
+        emit_metric("Errors", 1.0, "Count", _dims)
+    elif _status == "blocked":
+        emit_metric("GuardrailBlocks", 1.0, "Count", _dims)
+    elif _status == "timeout":
+        emit_metric("Timeouts", 1.0, "Count", _dims)
+    if cost is not None:
+        emit_metric("CostDollars", float(cost), "None", _dims)
+    if _status == "complete" and "rows_returned" in outputs:
+        emit_metric("RowsReturned", float(outputs["rows_returned"]), "Count", _dims)
 
 
 # --- Result storage ---

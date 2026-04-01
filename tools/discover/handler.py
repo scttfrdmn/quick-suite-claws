@@ -30,6 +30,7 @@ def handler(event: dict, context: Any) -> dict:
     scope = body.get("scope", {})
     limit = body.get("limit", 10)
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not query:
         return error("query is required")
@@ -57,7 +58,7 @@ def handler(event: dict, context: Any) -> dict:
 
     result = {"sources": sources}
 
-    audit_log("discover", principal, body, {"source_count": len(sources)})
+    audit_log("discover", principal, body, {"source_count": len(sources)}, request_id=request_id)
 
     return success(result)
 

@@ -16,14 +16,17 @@ def reset_shared(monkeypatch):
     _shared._s3 = None
     _shared._dynamodb = None
     _shared._bedrock = None
+    _shared._cloudwatch = None
     monkeypatch.setattr(_shared, "RUNS_BUCKET", "claws-runs")
     monkeypatch.setattr(_shared, "PLANS_TABLE", "claws-plans")
     monkeypatch.setattr(_shared, "SCHEMAS_TABLE", "claws-schemas")
     monkeypatch.setattr(_shared, "GUARDRAIL_ID", "")
+    monkeypatch.setattr(_shared, "METRICS_NAMESPACE", "")
     yield
     _shared._s3 = None
     _shared._dynamodb = None
     _shared._bedrock = None
+    _shared._cloudwatch = None
 
 
 # ---------------------------------------------------------------------------

@@ -2,12 +2,15 @@
 
 import aws_cdk as cdk
 from aws_cdk import (
-    aws_lambda as _lambda,
-    aws_iam as iam,
     aws_athena as athena,
 )
+from aws_cdk import (
+    aws_iam as iam,
+)
+from aws_cdk import (
+    aws_lambda as _lambda,
+)
 from constructs import Construct
-
 
 TOOL_NAMES = ["discover", "probe", "plan", "excavate", "refine", "export"]
 
@@ -91,6 +94,14 @@ class ClawsToolsStack(cdk.Stack):
             resources=["*"],
         ))
 
+        # CloudWatch metrics emission
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["cloudwatch:PutMetricData"],
+            resources=["*"],
+            conditions={"StringEquals": {"cloudwatch:namespace": "claws"}},
+        ))
+
         # Shared environment variables
         shared_env = {
             "CLAWS_RUNS_BUCKET": storage_stack.runs_bucket.bucket_name,
@@ -100,6 +111,7 @@ class ClawsToolsStack(cdk.Stack):
             "CLAWS_ATHENA_OUTPUT": f"s3://{storage_stack.athena_results_bucket.bucket_name}/",
             "CLAWS_GUARDRAIL_ID": guardrails_stack.base_guardrail_id,
             "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+            "CLAWS_METRICS_NAMESPACE": "claws",
         }
 
         # Create a Lambda for each tool

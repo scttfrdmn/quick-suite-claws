@@ -35,6 +35,7 @@ def handler(event: dict, context: Any) -> dict:
     source_id = body.get("source_id", "")
     constraints = body.get("constraints", {})
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not objective:
         return error("objective is required")
@@ -76,7 +77,9 @@ def handler(event: dict, context: Any) -> dict:
         response = bedrock_runtime().invoke_model(**invoke_kwargs)
         result = json.loads(response["body"].read())
     except Exception as e:
-        audit_log("plan", principal, body, {"status": "error", "error": str(e)})
+        audit_log(
+            "plan", principal, body, {"status": "error", "error": str(e)}, request_id=request_id
+        )
         return error(f"Model invocation failed: {e}", status_code=502)
 
     # Check if guardrail intervened
@@ -85,7 +88,7 @@ def handler(event: dict, context: Any) -> dict:
         audit_log("plan", principal, body, {
             "status": "blocked",
             "guardrail_trace": guardrail_trace,
-        })
+        }, request_id=request_id)
         return success({
             "status": "blocked",
             "reason": "Content policy violation on objective or generated query",
@@ -101,7 +104,7 @@ def handler(event: dict, context: Any) -> dict:
     if parsed is None:
         audit_log("plan", principal, body, {
             "status": "rejected", "reason": "Failed to parse model response",
-        })
+        }, request_id=request_id)
         return error("Failed to parse plan from model response", status_code=502)
 
     generated_query = parsed["query"]
@@ -110,7 +113,11 @@ def handler(event: dict, context: Any) -> dict:
     # Validate the generated query
     validation = validate_sql(generated_query, constraints)
     if not validation["ok"]:
-        audit_log("plan", principal, body, {"status": "rejected", "reason": validation["reason"]})
+        audit_log(
+            "plan", principal, body,
+            {"status": "rejected", "reason": validation["reason"]},
+            request_id=request_id,
+        )
         return success({
             "status": "rejected",
             "reason": validation["reason"],
@@ -126,7 +133,10 @@ def handler(event: dict, context: Any) -> dict:
             f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f}"
             f" exceeds limit ${max_cost:.2f}"
         )
-        audit_log("plan", principal, body, {"status": "rejected", "reason": cost_msg})
+        audit_log(
+            "plan", principal, body, {"status": "rejected", "reason": cost_msg},
+            request_id=request_id,
+        )
         return success({
             "status": "rejected",
             "reason": cost_msg,
@@ -172,7 +182,7 @@ def handler(event: dict, context: Any) -> dict:
         "plan_id": plan_id,
         "estimated_cost": cost_est["estimated_cost_dollars"],
         "guardrail_trace": guardrail_trace,
-    })
+    }, request_id=request_id)
 
     return success(response_body)
 

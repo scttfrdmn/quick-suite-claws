@@ -6,7 +6,6 @@ Results are scanned via ApplyGuardrail before return to agent.
 """
 
 import json
-
 from typing import Any
 
 from tools.errors import ForbiddenError, NotFoundError
@@ -39,6 +38,7 @@ def handler(event: dict, context: Any) -> dict:
     query_type = body.get("query_type", "")
     constraints = body.get("constraints", {})
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not source_id or not query or not query_type:
         return error("source_id, query, and query_type are required")
@@ -54,7 +54,7 @@ def handler(event: dict, context: Any) -> dict:
             audit_log("excavate", principal, body, {
                 "status": "rejected",
                 "reason": "Query does not match stored plan",
-            })
+            }, request_id=request_id)
             return error(ForbiddenError(
                 "Query does not match stored plan. Submit the exact query from the plan."
             ))
@@ -79,7 +79,7 @@ def handler(event: dict, context: Any) -> dict:
             "status": "error",
             "run_id": run_id,
             "error": str(e),
-        })
+        }, request_id=request_id)
         return error(f"Execution failed: {e}", status_code=500)
 
     if exec_result.get("status") == "error":
@@ -87,7 +87,7 @@ def handler(event: dict, context: Any) -> dict:
             "status": "error",
             "run_id": run_id,
             "error": exec_result.get("error"),
-        })
+        }, request_id=request_id)
         return error(exec_result["error"], status_code=500)
 
     # Scan results for PII/PHI via ApplyGuardrail before returning
@@ -100,7 +100,7 @@ def handler(event: dict, context: Any) -> dict:
                 "status": "blocked",
                 "run_id": run_id,
                 "reason": "Results contain sensitive content",
-            })
+            }, request_id=request_id)
             return success({
                 "run_id": run_id,
                 "status": "blocked",
@@ -133,6 +133,6 @@ def handler(event: dict, context: Any) -> dict:
         "rows_returned": len(rows),
         "bytes_scanned": exec_result.get("bytes_scanned", 0),
         "cost": exec_result.get("cost"),
-    })
+    }, request_id=request_id)
 
     return success(response_body)

@@ -26,6 +26,7 @@ def handler(event: dict, context: Any) -> dict:
     destination = body.get("destination", {})
     include_provenance = body.get("include_provenance", True)
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not run_id:
         return error("run_id is required")
@@ -44,7 +45,7 @@ def handler(event: dict, context: Any) -> dict:
         audit_log("export", principal, body, {
             "status": "blocked",
             "reason": "Export payload contains sensitive content",
-        })
+        }, request_id=request_id)
         return success({
             "status": "blocked",
             "reason": "Export payload contains sensitive content detected by guardrail",
@@ -81,7 +82,7 @@ def handler(event: dict, context: Any) -> dict:
     if provenance:
         response_body["provenance_uri"] = result.get("provenance_uri")
 
-    audit_log("export", principal, body, response_body)
+    audit_log("export", principal, body, response_body, request_id=request_id)
 
     return success(response_body)
 

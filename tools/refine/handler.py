@@ -34,6 +34,7 @@ def handler(event: dict, context: Any) -> dict:
     operations = body.get("operations", [])
     top_k = body.get("top_k", 25)
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not run_id:
         return error("run_id is required")
@@ -99,7 +100,7 @@ def handler(event: dict, context: Any) -> dict:
     audit_log("refine", principal, body, {
         "refined_run_id": refined_run_id,
         "manifest": manifest,
-    })
+    }, request_id=request_id)
 
     return success({
         "run_id": refined_run_id,
