@@ -64,6 +64,8 @@ def handler(event: dict, context: Any) -> dict:
         result.update(_probe_athena(qualified_name, mode, sample_rows))
     elif backend == "opensearch":
         result.update(_probe_opensearch(qualified_name, mode, sample_rows))
+    elif backend == "mcp":
+        result.update(_probe_mcp(source_id, mode, sample_rows))
     else:
         return error(f"Unsupported backend: {backend}")
 
@@ -204,6 +206,75 @@ def _sample_athena(database: str, table_name: str, limit: int) -> list[dict]:
 
     except Exception:
         return []
+
+
+def _probe_mcp(source_id: str, mode: str, sample_rows: int) -> dict:
+    """Probe an MCP server resource: schema (available tools + resource metadata)
+    and optional best-effort samples via the first available tool.
+    """
+    from tools.mcp.client import run_mcp_async  # noqa: PLC0415
+    from tools.mcp.registry import get_mcp_registry  # noqa: PLC0415
+
+    # source_id is "mcp://server/resource" — strip the mcp:// prefix
+    remainder = source_id[6:]  # strip "mcp://"
+    server_name, _, resource_name = remainder.partition("/")
+
+    registry = get_mcp_registry()
+    server_config = registry.get(server_name)
+    if server_config is None:
+        return {"error": f"MCP server '{server_name}' not found in registry"}
+
+    result: dict = {}
+
+    try:
+        # Single session: list tools and resources together
+        async def _list_tools_and_resources(session):  # noqa: E306
+            tools_result = await session.list_tools()
+            resources_result = await session.list_resources()
+            return tools_result.tools, resources_result.resources
+
+        tools, resources = run_mcp_async(_list_tools_and_resources, server_config)
+
+        available_tools = [
+            {
+                "name": t.name,
+                "description": t.description or "",
+                "input_schema": t.inputSchema if hasattr(t, "inputSchema") else {},
+            }
+            for t in tools
+        ]
+
+        # Find description for the requested resource
+        resource_description = ""
+        for r in resources:
+            if r.name == resource_name or str(r.uri).endswith(resource_name):
+                resource_description = r.description or ""
+                break
+
+        result["schema"] = {
+            "server": server_name,
+            "resource": resource_name,
+            "description": resource_description,
+            "available_tools": available_tools,
+        }
+
+        # Best-effort samples: call first tool with empty args
+        if mode in ("schema_and_samples", "full") and available_tools and sample_rows > 0:
+            first_tool = available_tools[0]["name"]
+            try:
+                async def _call_first_tool(session):  # noqa: E306
+                    from tools.excavate.executors.mcp import _call_mcp_tool  # noqa: PLC0415
+                    return await _call_mcp_tool(session, first_tool, {})
+
+                samples = run_mcp_async(_call_first_tool, server_config)
+                result["samples"] = samples[:sample_rows]
+            except Exception:
+                result["samples"] = []
+
+    except Exception as e:
+        result["error"] = str(e)
+
+    return result
 
 
 def _probe_opensearch(qualified_name: str, mode: str, sample_rows: int) -> dict:

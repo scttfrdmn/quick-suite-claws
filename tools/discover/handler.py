@@ -60,6 +60,10 @@ def handler(event: dict, context: Any) -> dict:
     if "s3" in domains:
         sources.extend(_discover_s3(query, spaces, limit))
 
+    # Search registered MCP servers
+    if "mcp" in domains:
+        sources.extend(_discover_mcp(query, spaces, limit))
+
     # Sort by confidence, apply limit
     sources.sort(key=lambda s: s.get("confidence", 0), reverse=True)
     sources = sources[:limit]
@@ -194,5 +198,60 @@ def _discover_s3(query: str, spaces: list[str], limit: int) -> list[dict]:
 
         except Exception as e:
             print(f"S3 discovery error for bucket {bucket}: {e}")
+
+    return sources
+
+
+def _discover_mcp(query: str, spaces: list[str], limit: int) -> list[dict]:
+    """Discover resources from registered MCP servers.
+
+    spaces = list of server names to restrict discovery to (empty = all servers).
+    Each server's resources/list is called and scored against query terms.
+    Errors per server are caught and skipped — same pattern as _discover_opensearch.
+    """
+    from tools.mcp.client import run_mcp_async  # noqa: PLC0415
+    from tools.mcp.registry import get_mcp_registry  # noqa: PLC0415
+
+    registry = get_mcp_registry()
+    if not registry:
+        return []
+
+    sources: list[dict] = []
+    query_terms = query.lower().split()
+
+    # Apply spaces filter (server names), or use all registered servers
+    server_names = [s for s in registry if not spaces or s in spaces]
+
+    for server_name in server_names:
+        server_config = registry[server_name]
+        try:
+            async def _list_resources(session):  # noqa: E306
+                result = await session.list_resources()
+                return result.resources
+
+            resources = run_mcp_async(_list_resources, server_config)
+
+            for resource in resources:
+                name = resource.name.lower()
+                desc = (resource.description or "").lower()
+                uri_str = str(resource.uri).lower()
+
+                score = 0.0
+                for term in query_terms:
+                    if term in name or term in uri_str:
+                        score += 0.4
+                    if term in desc:
+                        score += 0.3
+
+                if score > 0:
+                    sources.append({
+                        "id": f"mcp://{server_name}/{resource.name}",
+                        "kind": "mcp_resource",
+                        "confidence": min(score, 1.0),
+                        "reason": "Matches query in MCP resource name or description",
+                    })
+
+        except Exception as e:
+            print(f"MCP discovery error for server '{server_name}': {e}")
 
     return sources

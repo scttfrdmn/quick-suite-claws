@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import tools.excavate.executors.opensearch as _os_mod
+import tools.mcp.registry as _reg_mod
 import tools.probe.handler as _mod
 from tools.probe.handler import handler
 
@@ -200,3 +201,86 @@ class TestProbeOpenSearch:
         body = json.loads(resp["body"])
         assert "error" in body
         assert "unreachable" in body["error"]
+
+
+class TestProbeMcp:
+    @pytest.fixture(autouse=True)
+    def reset_registry(self, monkeypatch):
+        monkeypatch.setattr(_reg_mod, "_MODULE_REGISTRY", {
+            "postgres-prod": {"transport": "stdio", "command": "npx @dbhub/mcp"},
+        })
+
+    def _make_tool(self, name: str, description: str = "") -> MagicMock:
+        t = MagicMock()
+        t.name = name
+        t.description = description
+        t.inputSchema = {}
+        return t
+
+    def _make_resource(self, name: str, uri: str = "", description: str = "") -> MagicMock:
+        r = MagicMock()
+        r.name = name
+        r.uri = uri
+        r.description = description
+        return r
+
+    def test_mcp_schema_returned(self, schemas_table):
+        """Schema with server, resource, and available_tools is returned."""
+        tools_list = [self._make_tool("query", "Run SQL"), self._make_tool("list_tables")]
+        resources_list = [self._make_resource("public.users", description="Users table")]
+
+        with patch("tools.mcp.client.run_mcp_async") as mock_run:
+            mock_run.return_value = (tools_list, resources_list)
+            resp = handler(
+                {"source_id": "mcp://postgres-prod/public.users", "mode": "schema_only"},
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "schema" in body
+        assert body["schema"]["server"] == "postgres-prod"
+        assert body["schema"]["resource"] == "public.users"
+        assert len(body["schema"]["available_tools"]) == 2
+        assert body["schema"]["available_tools"][0]["name"] == "query"
+
+    def test_mcp_samples_returned(self, schemas_table):
+        """Samples are returned when mode=schema_and_samples."""
+        tools_list = [self._make_tool("query")]
+        resources_list = []
+        sample_rows = [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]
+
+        call_count = [0]
+
+        def side_effect(coro_fn, server_config, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return (tools_list, resources_list)
+            return sample_rows
+
+        with patch("tools.mcp.client.run_mcp_async", side_effect=side_effect):
+            resp = handler(
+                {
+                    "source_id": "mcp://postgres-prod/public.users",
+                    "mode": "schema_and_samples",
+                    "sample_rows": 2,
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "samples" in body
+        assert len(body["samples"]) == 2
+
+    def test_mcp_server_not_in_registry(self, monkeypatch):
+        """Unknown server returns error in body — no HTTP 500."""
+        monkeypatch.setattr(_reg_mod, "_MODULE_REGISTRY", {})
+        resp = handler(
+            {"source_id": "mcp://unknown-server/table", "mode": "schema_only"},
+            None,
+        )
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "error" in body
+        assert "unknown-server" in body["error"]

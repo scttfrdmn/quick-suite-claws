@@ -110,38 +110,42 @@ def handler(event: dict, context: Any) -> dict:
     generated_query = parsed["query"]
     output_schema = parsed.get("output_schema", {})
 
-    # Validate the generated query
-    validation = validate_sql(generated_query, constraints)
-    if not validation["ok"]:
-        audit_log(
-            "plan", principal, body,
-            {"status": "rejected", "reason": validation["reason"]},
-            request_id=request_id,
-        )
-        return success({
-            "status": "rejected",
-            "reason": validation["reason"],
-        })
+    # MCP queries bypass SQL validation and cost estimation
+    if query_type == "mcp_tool":
+        cost_est = {"estimated_bytes_scanned": 0, "estimated_cost_dollars": 0.0}
+    else:
+        # Validate the generated query
+        validation = validate_sql(generated_query, constraints)
+        if not validation["ok"]:
+            audit_log(
+                "plan", principal, body,
+                {"status": "rejected", "reason": validation["reason"]},
+                request_id=request_id,
+            )
+            return success({
+                "status": "rejected",
+                "reason": validation["reason"],
+            })
 
-    # Estimate cost
-    cost_est = estimate_cost(source_id, generated_query, schema)
+        # Estimate cost
+        cost_est = estimate_cost(source_id, generated_query, schema)
 
-    # Check cost against constraints
-    max_cost = constraints.get("max_cost_dollars")
-    if max_cost and cost_est["estimated_cost_dollars"] > max_cost:
-        cost_msg = (
-            f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f}"
-            f" exceeds limit ${max_cost:.2f}"
-        )
-        audit_log(
-            "plan", principal, body, {"status": "rejected", "reason": cost_msg},
-            request_id=request_id,
-        )
-        return success({
-            "status": "rejected",
-            "reason": cost_msg,
-            "estimated_cost": f"${cost_est['estimated_cost_dollars']:.2f}",
-        })
+        # Check cost against constraints
+        max_cost = constraints.get("max_cost_dollars")
+        if max_cost and cost_est["estimated_cost_dollars"] > max_cost:
+            cost_msg = (
+                f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f}"
+                f" exceeds limit ${max_cost:.2f}"
+            )
+            audit_log(
+                "plan", principal, body, {"status": "rejected", "reason": cost_msg},
+                request_id=request_id,
+            )
+            return success({
+                "status": "rejected",
+                "reason": cost_msg,
+                "estimated_cost": f"${cost_est['estimated_cost_dollars']:.2f}",
+            })
 
     # Store the plan
     plan_id = new_plan_id()
@@ -193,6 +197,7 @@ def _backend_to_query_type(backend: str) -> str:
         "opensearch": "opensearch_dsl",
         "s3": "s3_select_sql",
         "dynamodb": "dynamodb_partiql",
+        "mcp": "mcp_tool",
     }.get(backend, "athena_sql")
 
 
@@ -213,6 +218,41 @@ def _build_plan_prompt(
     schema_text = json.dumps(schema, indent=2, default=_decimal_default)
     constraints_text = json.dumps(constraints, indent=2)
 
+    if query_type == "mcp_tool":
+        rules_block = """Rules:
+1. The query MUST be a JSON object serialized as a string.
+2. Format: {"server": "<server_name>", "tool": "<tool_name>", "arguments": {...}}
+3. Server name comes from the source_id: mcp://<server_name>/<resource>.
+4. Choose the most appropriate tool from available_tools in the schema.
+5. Arguments must conform to the tool's input_schema.
+6. Do not fabricate tool names or arguments not present in the schema.
+
+Respond in JSON with exactly this structure:
+{{
+  "query": "{{\\"server\\": \\"<name>\\", \\"tool\\": \\"<tool>\\", \\"arguments\\": {{...}}}}",
+  "output_schema": {{
+    "columns": ["col1", "col2"],
+    "estimated_rows": 0
+  }},
+  "reasoning": "<brief explanation>"
+}}"""
+    else:
+        rules_block = """Rules:
+1. Generate ONLY a read-only query. No INSERT, UPDATE, DELETE, DROP, ALTER, CREATE.
+2. Respect constraints — especially max_bytes_scanned and timeout.
+3. Use partition keys in WHERE clauses when available to reduce scan cost.
+4. Return results in a shape that directly answers the objective.
+
+Respond in JSON with exactly this structure:
+{{
+  "query": "<the concrete SQL/DSL query>",
+  "output_schema": {{
+    "columns": ["col1", "col2"],
+    "estimated_rows": <number>
+  }},
+  "reasoning": "<brief explanation of query design choices>"
+}}"""
+
     return f"""You are a query planner for the clAWS excavation system. Your job is to
 translate a natural-language objective into a concrete, executable query.
 
@@ -227,21 +267,7 @@ CONSTRAINTS:
 
 OBJECTIVE: {objective}
 
-Rules:
-1. Generate ONLY a read-only query. No INSERT, UPDATE, DELETE, DROP, ALTER, CREATE.
-2. Respect constraints — especially max_bytes_scanned and timeout.
-3. Use partition keys in WHERE clauses when available to reduce scan cost.
-4. Return results in a shape that directly answers the objective.
-
-Respond in JSON with exactly this structure:
-{{
-  "query": "<the concrete SQL/DSL query>",
-  "output_schema": {{
-    "columns": ["col1", "col2"],
-    "estimated_rows": <number>
-  }},
-  "reasoning": "<brief explanation of query design choices>"
-}}
+{rules_block}
 
 Respond ONLY with the JSON object. No markdown, no backticks, no preamble."""
 

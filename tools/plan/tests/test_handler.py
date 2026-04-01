@@ -114,3 +114,59 @@ class TestPlanHandler:
         body = json.loads(resp["body"])
         assert body["status"] == "rejected"
         assert "cost" in body["reason"].lower()
+
+
+MCP_SCHEMA = {
+    "server": "postgres-prod",
+    "resource": "public.users",
+    "description": "Users table",
+    "available_tools": [
+        {"name": "query", "description": "Run SQL", "input_schema": {"sql": "string"}},
+    ],
+}
+
+_MCP_QUERY = json.dumps({
+    "server": "postgres-prod",
+    "tool": "query",
+    "arguments": {"sql": "SELECT * FROM users LIMIT 10"},
+})
+
+
+class TestPlanMcp:
+    def test_mcp_skips_sql_validator(self, plans_table, schemas_table):
+        """MCP plans bypass SQL validation — query_type is mcp_tool."""
+        _seed_schema(schemas_table, "mcp://postgres-prod/public.users", MCP_SCHEMA)
+        bedrock_client = _bedrock_mock(_MCP_QUERY)
+
+        with patch("tools.plan.handler.bedrock_runtime", return_value=bedrock_client):
+            resp = handler(
+                {
+                    "objective": "get the first 10 users",
+                    "source_id": "mcp://postgres-prod/public.users",
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["status"] == "ready"
+        assert body["steps"][0]["input"]["query_type"] == "mcp_tool"
+
+    def test_mcp_plan_zero_cost(self, plans_table, schemas_table):
+        """MCP plans always have zero estimated cost and bytes."""
+        _seed_schema(schemas_table, "mcp://postgres-prod/public.users", MCP_SCHEMA)
+        bedrock_client = _bedrock_mock(_MCP_QUERY)
+
+        with patch("tools.plan.handler.bedrock_runtime", return_value=bedrock_client):
+            resp = handler(
+                {
+                    "objective": "list users",
+                    "source_id": "mcp://postgres-prod/public.users",
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["estimated_cost"] == "$0.00"
+        assert body["estimated_bytes_scanned"] == 0

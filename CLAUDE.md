@@ -142,13 +142,13 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - Cedar policies (default + research-team + restricted-dataset examples)
 - Bedrock Guardrail configs (base + genomics + financial tenant overlays)
 - All 6 tool handlers with real implementation logic
-- All 3 executors: Athena, OpenSearch (with aggregation flattening), S3 Select
+- All 4 executors: Athena, OpenSearch (with aggregation flattening), S3 Select, MCP
 - SQL validator with mutation detection, multi-statement blocking
 - Cost estimator with Athena pricing model, partition pruning heuristics
 - Guardrail scanning (ApplyGuardrail API integration in shared.py)
 - Plan-to-execution linkage (plan_id validation in excavate)
 - CDK stacks for all infrastructure
-- 115 passing tests
+- 145 passing tests
 
 ## Work tracking
 

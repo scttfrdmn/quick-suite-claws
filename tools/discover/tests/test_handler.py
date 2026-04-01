@@ -1,13 +1,14 @@
 """Handler-level tests for claws.discover using substrate Glue."""
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import boto3
 import pytest
 
 import tools.discover.handler as _mod
 import tools.excavate.executors.opensearch as _os_mod
+import tools.mcp.registry as _reg_mod
 from tools.discover.handler import handler
 
 
@@ -215,3 +216,86 @@ class TestDiscoverS3:
         assert resp["statusCode"] == 200
         body = json.loads(resp["body"])
         assert body["sources"] == []
+
+
+class TestDiscoverMcp:
+    @pytest.fixture(autouse=True)
+    def seed_registry(self, monkeypatch):
+        monkeypatch.setattr(_reg_mod, "_MODULE_REGISTRY", {
+            "postgres-prod": {"transport": "stdio", "command": "npx @dbhub/mcp"},
+            "snowflake": {"transport": "http", "url": "https://mcp.example.com"},
+        })
+
+    def _make_resource(self, name: str, uri: str = "", description: str = "") -> MagicMock:
+        r = MagicMock()
+        r.name = name
+        r.uri = uri
+        r.description = description
+        return r
+
+    def test_discovers_matching_mcp_sources(self):
+        """Resources matching query terms are returned as mcp:// source IDs."""
+        resources = [
+            self._make_resource("variants_table", uri="postgres://public/variants"),
+            self._make_resource("logs_table", uri="postgres://public/logs"),
+        ]
+
+        with patch("tools.mcp.client.run_mcp_async", return_value=resources):
+            resp = handler(
+                {
+                    "query": "variants",
+                    "scope": {"domains": ["mcp"], "spaces": []},
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        ids = [s["id"] for s in body["sources"]]
+        assert any("variants" in i for i in ids)
+        assert not any("logs" in i for i in ids)
+
+    def test_confidence_scoring(self):
+        """Resource whose name matches query term gets confidence > 0."""
+        resources = [self._make_resource("genes_hg38")]
+
+        with patch("tools.mcp.client.run_mcp_async", return_value=resources):
+            resp = handler(
+                {"query": "genes", "scope": {"domains": ["mcp"]}},
+                None,
+            )
+
+        body = json.loads(resp["body"])
+        assert body["sources"][0]["confidence"] > 0
+
+    def test_error_per_server_skipped(self):
+        """An exception from one server does not fail the whole request."""
+        with patch("tools.mcp.client.run_mcp_async", side_effect=Exception("timeout")):
+            resp = handler(
+                {"query": "genes", "scope": {"domains": ["mcp"]}},
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["sources"] == []
+
+    def test_spaces_filter_restricts_servers(self):
+        """When spaces is set, only matching server names are queried."""
+        call_count = [0]
+
+        def mock_run(coro_fn, server_config, **kwargs):
+            call_count[0] += 1
+            return []
+
+        with patch("tools.mcp.client.run_mcp_async", side_effect=mock_run):
+            handler(
+                {
+                    "query": "data",
+                    "scope": {"domains": ["mcp"], "spaces": ["postgres-prod"]},
+                },
+                None,
+            )
+
+        # Only postgres-prod should have been queried, not snowflake
+        assert call_count[0] == 1
