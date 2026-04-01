@@ -44,6 +44,9 @@ testpaths = ["tools"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "live: live AWS integration tests (requires real credentials and env vars; run manually)",
+]
 
 [tool.ruff]
 target-version = "py312"
