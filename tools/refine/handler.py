@@ -41,10 +41,14 @@ def handler(event: dict, context: Any) -> dict:
     if not operations:
         return error("operations is required")
 
-    # Validate operations — rank_by_<field> is a valid rank variant
+    # Validate operations — rank_by_<field> is a valid rank variant;
+    # dict ops (e.g. {"op": "filter", ...}) are resolved by their "op" key
+    def _op_name(op: Any) -> str:
+        return op if isinstance(op, str) else op.get("op", "")
+
     invalid = [
         op for op in operations
-        if op not in ALLOWED_OPERATIONS and not op.startswith("rank_by_")
+        if _op_name(op) not in ALLOWED_OPERATIONS and not _op_name(op).startswith("rank_by_")
     ]
     if invalid:
         return error(f"Invalid operations: {invalid}. Allowed: {ALLOWED_OPERATIONS}")
@@ -60,21 +64,22 @@ def handler(event: dict, context: Any) -> dict:
     # Apply operations in order
     for op in operations:
         before_count = len(rows) if isinstance(rows, list) else 0
+        op_name = op if isinstance(op, str) else op.get("op", "")
 
-        if op == "dedupe":
+        if op_name == "dedupe":
             rows = _dedupe(rows)
-        elif op.startswith("rank"):
-            rows = _rank(rows, op)
-        elif op == "filter":
-            rows = rows  # TODO: parameterized filtering
-        elif op == "normalize":
+        elif op_name.startswith("rank"):
+            rows = _rank(rows, op_name)
+        elif op_name == "filter" and isinstance(op, dict):
+            rows = _filter(rows, op)
+        elif op_name == "normalize":
             rows = _normalize(rows)
-        elif op == "summarize":
+        elif op_name == "summarize":
             rows = _summarize(rows, run_id, top_k)
 
         after_count = len(rows) if isinstance(rows, list) else 1
         manifest["operations"].append({
-            "operation": op,
+            "operation": op_name,
             "rows_before": before_count,
             "rows_after": after_count,
         })
@@ -147,6 +152,46 @@ def _rank(rows: list[dict], op: str) -> list[dict]:
             return 0
 
     return sorted(rows, key=sort_key)
+
+
+def _filter(rows: list[dict], op_config: dict) -> list[dict]:
+    """Filter rows by a field condition.
+
+    op_config keys: field (str), operator (str), value (any)
+    Operators: eq, ne, gt, gte, lt, lte, contains, not_contains
+    """
+    field = op_config.get("field", "")
+    operator = op_config.get("operator", "eq")
+    value = op_config.get("value")
+    if not field:
+        return rows
+
+    def _match(row: dict) -> bool:
+        if field not in row:
+            return True  # field absent → row survives (graceful no-op)
+        cell = row.get(field)
+        try:
+            if operator == "eq":
+                return cell == value
+            if operator == "ne":
+                return cell != value
+            if operator == "gt":
+                return float(cell) > float(value)  # type: ignore[arg-type]
+            if operator == "gte":
+                return float(cell) >= float(value)  # type: ignore[arg-type]
+            if operator == "lt":
+                return float(cell) < float(value)  # type: ignore[arg-type]
+            if operator == "lte":
+                return float(cell) <= float(value)  # type: ignore[arg-type]
+            if operator == "contains":
+                return str(value) in str(cell or "")
+            if operator == "not_contains":
+                return str(value) not in str(cell or "")
+        except (TypeError, ValueError):
+            return False
+        return True
+
+    return [r for r in rows if _match(r)]
 
 
 def _normalize(rows: list[dict]) -> list[dict]:

@@ -207,6 +207,48 @@ def _sample_athena(database: str, table_name: str, limit: int) -> list[dict]:
 
 
 def _probe_opensearch(qualified_name: str, mode: str, sample_rows: int) -> dict:
-    """Probe an OpenSearch index."""
-    # TODO: Implement OpenSearch index probe
-    return {"error": "OpenSearch probe not yet implemented"}
+    """Probe an OpenSearch index: schema (mapping), stats, and optional samples."""
+    from tools.excavate.executors.opensearch import _os_client, _parse_source_id  # noqa: PLC0415
+
+    try:
+        endpoint, index = _parse_source_id(f"opensearch:{qualified_name}")
+    except ValueError as e:
+        return {"error": str(e)}
+
+    client = _os_client(endpoint)
+    result: dict = {}
+
+    try:
+        # Schema from index mapping
+        mapping = client.indices.get_mapping(index=index)
+        properties = (
+            mapping.get(index, {}).get("mappings", {}).get("properties", {})
+        )
+        columns = [{"name": k, "type": v.get("type", "object")} for k, v in properties.items()]
+        result["schema"] = {"index": index, "endpoint": endpoint, "columns": columns}
+
+        # Stats
+        stats = client.indices.stats(index=index)
+        idx_stats = stats.get("indices", {}).get(index, {}).get("total", {})
+        result["row_count_estimate"] = idx_stats.get("docs", {}).get("count", 0)
+        result["size_bytes_estimate"] = idx_stats.get("store", {}).get("size_in_bytes", 0)
+
+        # Samples
+        if mode in ("schema_and_samples", "full") and sample_rows > 0:
+            resp = client.search(
+                index=index,
+                body={"query": {"match_all": {}}, "size": sample_rows},
+            )
+            result["samples"] = [
+                hit.get("_source", {})
+                for hit in resp.get("hits", {}).get("hits", [])
+            ]
+
+        # Cost estimates
+        if mode in ("cost_estimate", "full"):
+            result["cost_estimates"] = {"note": "OpenSearch charges no per-query scan fee."}
+
+    except Exception as e:
+        result["error"] = str(e)
+
+    return result

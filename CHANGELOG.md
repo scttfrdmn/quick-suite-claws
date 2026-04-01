@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-01
+
+### Added
+- `discover._discover_opensearch()`: lists OpenSearch domain indices via `cat.indices`; scores by query-term match in index name; reuses `_os_client()` from the excavate executor (#15)
+- `discover._discover_s3()`: lists S3 bucket common prefixes and object keys via `list_objects_v2`; scores by query-term match; `_s3_client()` singleton added (#15)
+- `probe._probe_opensearch()`: index mapping → schema columns, index stats → row/size estimates, optional sample documents via `match_all`; reuses `_os_client()` and `_parse_source_id()` from excavate executor (#16)
+- `refine._filter()`: parameterized row filtering with operators `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`; operations list now accepts dict entries `{"op": "filter", "field": ..., "operator": ..., "value": ...}` alongside existing string ops (#17)
+- `tools/excavate/tests/test_executors.py`: 13 direct unit tests for `execute_athena()` (5 tests: complete, failed, timeout, start-failure, cost calculation) and `execute_s3_select()` (8 tests: source-id parsing, format detection, CSV execute, missing key) (#18)
+- `tools/tests/test_pipeline.py`: 3 end-to-end tests validating plan_id bait-and-switch protection across plan→excavate handler boundary (#19)
+
+### Fixed
+- `refine._filter()`: rows where the filtered field is absent are preserved (graceful no-op per row)
+
 ## [0.2.0] - 2026-04-01
 
 ### Added
@@ -39,6 +52,7 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 - Architecture, safety model, and Quick Suite integration design docs
 - Example workflows: genomics excavation, log analysis, document mining
 
-[Unreleased]: https://github.com/scttfrdmn/claws/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/scttfrdmn/claws/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/scttfrdmn/claws/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scttfrdmn/claws/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scttfrdmn/claws/releases/tag/v0.1.0

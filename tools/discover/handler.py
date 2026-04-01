@@ -10,6 +10,7 @@ from tools.shared import audit_log, error, success
 # Source registry backends
 GLUE_CLIENT = None
 OPENSEARCH_CLIENT = None
+S3_CLIENT = None
 
 
 def glue_client() -> Any:
@@ -17,6 +18,13 @@ def glue_client() -> Any:
     if GLUE_CLIENT is None:
         GLUE_CLIENT = boto3.client("glue")
     return GLUE_CLIENT
+
+
+def _s3_client() -> Any:
+    global S3_CLIENT
+    if S3_CLIENT is None:
+        S3_CLIENT = boto3.client("s3")
+    return S3_CLIENT
 
 
 def handler(event: dict, context: Any) -> dict:
@@ -116,12 +124,75 @@ def _discover_glue(query: str, spaces: list[str], limit: int) -> list[dict]:
 
 
 def _discover_opensearch(query: str, spaces: list[str], limit: int) -> list[dict]:
-    """Search OpenSearch domain indices."""
-    # TODO: Implement OpenSearch index discovery
-    return []
+    """Search OpenSearch domain indices.
+
+    spaces = list of OpenSearch endpoints, e.g. "search-prod.us-east-1.es.amazonaws.com"
+    """
+    from tools.excavate.executors.opensearch import _os_client  # noqa: PLC0415
+
+    sources: list[dict] = []
+    query_terms = query.lower().split()
+
+    for endpoint in spaces:
+        try:
+            client = _os_client(endpoint)
+            indices = client.cat.indices(format="json") or []
+            for entry in indices:
+                index_name = entry.get("index", "")
+                score = sum(0.4 for term in query_terms if term in index_name.lower())
+                if score > 0:
+                    sources.append({
+                        "id": f"opensearch:{endpoint}/{index_name}",
+                        "kind": "index",
+                        "confidence": min(score, 1.0),
+                        "reason": "Matches query in index name",
+                    })
+        except Exception as e:
+            print(f"OpenSearch discovery error for {endpoint}: {e}")
+
+    return sources
 
 
 def _discover_s3(query: str, spaces: list[str], limit: int) -> list[dict]:
-    """Search S3 inventory for matching prefixes/objects."""
-    # TODO: Implement S3 inventory search
-    return []
+    """Search S3 buckets for matching common prefixes or object keys.
+
+    spaces = list of S3 bucket names.
+    """
+    sources: list[dict] = []
+    query_terms = query.lower().split()
+
+    for bucket in spaces:
+        try:
+            response = _s3_client().list_objects_v2(
+                Bucket=bucket, Delimiter="/", MaxKeys=100
+            )
+
+            # Score common prefixes (folder-level discovery)
+            for cp in response.get("CommonPrefixes", []):
+                prefix = cp.get("Prefix", "")
+                score = sum(0.4 for term in query_terms if term in prefix.lower())
+                if score > 0:
+                    sources.append({
+                        "id": f"s3://{bucket}/{prefix}",
+                        "kind": "prefix",
+                        "confidence": min(score, 1.0),
+                        "reason": "Matches query in S3 prefix",
+                    })
+
+            # Fall back to object keys if no matching prefixes
+            if not any(s["id"].startswith(f"s3://{bucket}/") for s in sources):
+                for obj in response.get("Contents", []):
+                    key = obj.get("Key", "")
+                    score = sum(0.4 for term in query_terms if term in key.lower())
+                    if score > 0:
+                        sources.append({
+                            "id": f"s3://{bucket}/{key}",
+                            "kind": "object",
+                            "confidence": min(score, 1.0),
+                            "reason": "Matches query in S3 object key",
+                        })
+
+        except Exception as e:
+            print(f"S3 discovery error for bucket {bucket}: {e}")
+
+    return sources

@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import tools.excavate.executors.opensearch as _os_mod
 import tools.probe.handler as _mod
 from tools.probe.handler import handler
 
@@ -102,3 +103,100 @@ class TestProbeHandler:
         assert "schema" in body
         assert "samples" in body
         assert isinstance(body["samples"], list)
+
+
+class TestProbeOpenSearch:
+    @pytest.fixture(autouse=True)
+    def reset_os_client(self):
+        _os_mod.OS_CLIENT.clear()
+        yield
+        _os_mod.OS_CLIENT.clear()
+
+    def _make_os_mock(self) -> MagicMock:
+        mock = MagicMock()
+        mock.indices.get_mapping.return_value = {
+            "genes": {
+                "mappings": {
+                    "properties": {
+                        "gene_id": {"type": "keyword"},
+                        "symbol": {"type": "text"},
+                        "score": {"type": "float"},
+                    }
+                }
+            }
+        }
+        mock.indices.stats.return_value = {
+            "indices": {
+                "genes": {
+                    "total": {
+                        "docs": {"count": 5000},
+                        "store": {"size_in_bytes": 2048000},
+                    }
+                }
+            }
+        }
+        return mock
+
+    def test_opensearch_schema_only(self, schemas_table, monkeypatch):
+        """Schema + stats returned; schema cached in DynamoDB."""
+        mock_client = self._make_os_mock()
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock_client)
+
+        resp = handler(
+            {"source_id": "opensearch:search-host.es.amazonaws.com/genes", "mode": "schema_only"},
+            None,
+        )
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "schema" in body
+        column_names = [c["name"] for c in body["schema"]["columns"]]
+        assert "gene_id" in column_names
+        assert body["row_count_estimate"] == 5000
+
+        # Schema cached in DynamoDB
+        cached = schemas_table.get_item(
+            Key={"source_id": "opensearch:search-host.es.amazonaws.com/genes"}
+        )
+        assert "Item" in cached
+
+    def test_opensearch_with_samples(self, schemas_table, monkeypatch):
+        """Samples returned when mode=schema_and_samples."""
+        mock_client = self._make_os_mock()
+        mock_client.search.return_value = {
+            "hits": {
+                "hits": [
+                    {"_source": {"gene_id": "BRCA1", "symbol": "BRCA1", "score": 0.9}},
+                    {"_source": {"gene_id": "TP53", "symbol": "TP53", "score": 0.8}},
+                ]
+            }
+        }
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock_client)
+
+        resp = handler(
+            {
+                "source_id": "opensearch:search-host.es.amazonaws.com/genes",
+                "mode": "schema_and_samples",
+                "sample_rows": 2,
+            },
+            None,
+        )
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "samples" in body
+        assert len(body["samples"]) == 2
+        assert body["samples"][0]["gene_id"] == "BRCA1"
+
+    def test_opensearch_probe_error(self, schemas_table, monkeypatch):
+        """Client error sets result['error'] — no HTTP 500."""
+        mock_client = MagicMock()
+        mock_client.indices.get_mapping.side_effect = Exception("cluster unreachable")
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock_client)
+
+        resp = handler(
+            {"source_id": "opensearch:search-host.es.amazonaws.com/genes", "mode": "schema_only"},
+            None,
+        )
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "error" in body
+        assert "unreachable" in body["error"]
