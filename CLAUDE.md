@@ -142,37 +142,23 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - Cedar policies (default + research-team + restricted-dataset examples)
 - Bedrock Guardrail configs (base + genomics + financial tenant overlays)
 - All 6 tool handlers with real implementation logic
+- All 3 executors: Athena, OpenSearch (with aggregation flattening), S3 Select
 - SQL validator with mutation detection, multi-statement blocking
 - Cost estimator with Athena pricing model, partition pruning heuristics
-- Athena executor (fully implemented against real Athena APIs)
 - Guardrail scanning (ApplyGuardrail API integration in shared.py)
 - Plan-to-execution linkage (plan_id validation in excavate)
 - CDK stacks for all infrastructure
-- 17 passing tests
+- 115 passing tests
 
-## What needs work next
+## Work tracking
 
-### Priority 1: Fill in executor stubs
-- `tools/excavate/executors/opensearch.py` — implement with opensearchpy
-- `tools/excavate/executors/s3_select.py` — implement with boto3 select_object_content
-- `tools/probe/handler.py` — implement `_sample_athena()` (Athena StartQueryExecution for samples)
+Work is tracked in GitHub — see milestones and issues at
+https://github.com/scttfrdmn/claws/milestones
 
-### Priority 2: More tests
-- Handler-level tests using moto for S3, DynamoDB, Athena
-- Plan handler tests mocking Bedrock InvokeModel
-- Excavate handler tests verifying plan_id linkage rejection
-- End-to-end pipeline tests (discover → probe → plan → excavate)
-
-### Priority 3: Hardening
-- Add proper error types (not just string errors)
-- Add request ID propagation through the pipeline
-- Add CloudWatch metrics emission in shared.py
-- Add OpenSearch index discovery in discover handler
-
-### Priority 4: CDK improvements
-- Gateway and Policy stacks are placeholders (AgentCore CDK constructs may be in preview)
-- Add custom resources for AgentCore CLI-based setup if CDK constructs aren't available
-- Add cross-stack references for guardrail IDs
+Current milestones:
+- **v0.4.1** — OpenSearch aggregation flattening + executor tests
+- **v0.5.0** — MCP extensibility (issues #22–#27)
+- **v0.6.0** — Capstone integration (issues #28–#29)
 
 ## Design docs
 

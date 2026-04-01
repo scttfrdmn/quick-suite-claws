@@ -1,11 +1,13 @@
-"""Direct unit tests for execute_athena() and execute_s3_select() executors."""
+"""Direct unit tests for execute_athena(), execute_s3_select(), and execute_opensearch()."""
 
 from unittest.mock import MagicMock
 
 import pytest
 
 import tools.excavate.executors.athena as _athena_mod
+import tools.excavate.executors.opensearch as _os_mod
 from tools.excavate.executors.athena import execute_athena
+from tools.excavate.executors.opensearch import _flatten_aggregations, execute_opensearch
 from tools.excavate.executors.s3_select import (
     _input_serialization,
     _parse_source_id,
@@ -198,3 +200,180 @@ class TestS3SelectExecutor:
         )
         assert result["status"] == "error"
         assert "not found" in result["error"].lower() or "NoSuchKey" in result["error"]
+
+
+class TestOpenSearchExecutor:
+    @pytest.fixture(autouse=True)
+    def reset_os_clients(self):
+        _os_mod.OS_CLIENT.clear()
+        yield
+        _os_mod.OS_CLIENT.clear()
+
+    def _mock_client(self, response: dict) -> MagicMock:
+        mock = MagicMock()
+        mock.search.return_value = response
+        return mock
+
+    # --- _flatten_aggregations unit tests ---
+
+    def test_flatten_single_level_terms_agg(self):
+        aggs = {
+            "by_service": {
+                "buckets": [
+                    {"key": "payment-svc", "doc_count": 847},
+                    {"key": "auth-svc", "doc_count": 501},
+                ]
+            }
+        }
+        rows = _flatten_aggregations(aggs)
+        assert len(rows) == 2
+        assert rows[0] == {"by_service": "payment-svc", "count": 847}
+        assert rows[1] == {"by_service": "auth-svc", "count": 501}
+
+    def test_flatten_nested_terms_agg(self):
+        """Two-level agg: matches the log-analysis example."""
+        aggs = {
+            "by_service": {
+                "buckets": [
+                    {
+                        "key": "payment-svc",
+                        "doc_count": 1159,
+                        "top_messages": {
+                            "buckets": [
+                                {"key": "Upstream timeout after 5000ms", "doc_count": 847},
+                                {"key": "Upstream timeout after 3000ms", "doc_count": 312},
+                            ]
+                        },
+                    },
+                    {
+                        "key": "auth-svc",
+                        "doc_count": 501,
+                        "top_messages": {
+                            "buckets": [
+                                {"key": "Token validation failed", "doc_count": 501},
+                            ]
+                        },
+                    },
+                ]
+            }
+        }
+        rows = _flatten_aggregations(aggs)
+        assert len(rows) == 3
+        assert rows[0] == {
+            "by_service": "payment-svc",
+            "top_messages": "Upstream timeout after 5000ms",
+            "count": 847,
+        }
+        assert rows[2] == {
+            "by_service": "auth-svc",
+            "top_messages": "Token validation failed",
+            "count": 501,
+        }
+
+    def test_flatten_empty_aggs(self):
+        assert _flatten_aggregations({}) == []
+
+    def test_flatten_no_bucket_aggs(self):
+        # value_count or avg aggs (no 'buckets' key) → empty
+        assert _flatten_aggregations({"total": {"value": 42}}) == []
+
+    # --- execute_opensearch integration tests ---
+
+    def test_execute_opensearch_hits(self, monkeypatch):
+        """Non-aggregation query: rows come from hits.hits._source."""
+        mock = self._mock_client({
+            "hits": {
+                "hits": [
+                    {"_source": {"gene": "BRCA1", "score": 0.9}},
+                    {"_source": {"gene": "TP53", "score": 0.8}},
+                ]
+            }
+        })
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock)
+
+        result = execute_opensearch(
+            source_id="opensearch:search-prod.us-east-1.es.amazonaws.com/genes",
+            query={"query": {"match_all": {}}},
+            constraints={},
+            run_id="run-os0001",
+        )
+        assert result["status"] == "complete"
+        assert len(result["rows"]) == 2
+        assert result["rows"][0]["gene"] == "BRCA1"
+        assert result["cost"] == "$0.0000"
+        assert result["bytes_scanned"] == 0
+
+    def test_execute_opensearch_aggregation(self, monkeypatch):
+        """Aggregation query: rows come from flattened buckets."""
+        mock = self._mock_client({
+            "hits": {"hits": []},
+            "aggregations": {
+                "by_service": {
+                    "buckets": [
+                        {"key": "payment-svc", "doc_count": 847},
+                        {"key": "auth-svc", "doc_count": 501},
+                    ]
+                }
+            },
+        })
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock)
+
+        result = execute_opensearch(
+            source_id="opensearch:search-prod.us-east-1.es.amazonaws.com/logs",
+            query={"size": 0, "aggs": {"by_service": {"terms": {"field": "service"}}}},
+            constraints={},
+            run_id="run-os0002",
+        )
+        assert result["status"] == "complete"
+        assert len(result["rows"]) == 2
+        assert result["rows"][0] == {"by_service": "payment-svc", "count": 847}
+
+    def test_execute_opensearch_read_only_blocks_delete(self, monkeypatch):
+        """read_only constraint blocks _delete_by_query in DSL."""
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: MagicMock())
+
+        result = execute_opensearch(
+            source_id="opensearch:search-prod.us-east-1.es.amazonaws.com/logs",
+            query={"_delete_by_query": {"query": {"match_all": {}}}},
+            constraints={"read_only": True},
+            run_id="run-os0003",
+        )
+        assert result["status"] == "error"
+        assert "_delete_by_query" in result["error"]
+
+    def test_execute_opensearch_invalid_json_string(self, monkeypatch):
+        """Malformed JSON query string returns status=error."""
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: MagicMock())
+
+        result = execute_opensearch(
+            source_id="opensearch:search-prod.us-east-1.es.amazonaws.com/logs",
+            query="not valid json {{{",
+            constraints={},
+            run_id="run-os0004",
+        )
+        assert result["status"] == "error"
+        assert "not valid JSON" in result["error"]
+
+    def test_execute_opensearch_connection_error(self, monkeypatch):
+        """Client exception returns status=error."""
+        mock = MagicMock()
+        mock.search.side_effect = Exception("connection refused")
+        monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock)
+
+        result = execute_opensearch(
+            source_id="opensearch:search-prod.us-east-1.es.amazonaws.com/logs",
+            query={"query": {"match_all": {}}},
+            constraints={},
+            run_id="run-os0005",
+        )
+        assert result["status"] == "error"
+        assert "connection refused" in result["error"]
+
+    def test_execute_opensearch_invalid_source_id(self):
+        result = execute_opensearch(
+            source_id="opensearch:no-slash-here",
+            query={"query": {"match_all": {}}},
+            constraints={},
+            run_id="run-os0006",
+        )
+        assert result["status"] == "error"

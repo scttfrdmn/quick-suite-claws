@@ -71,6 +71,40 @@ def _os_client(endpoint: str) -> Any:
     return client
 
 
+def _flatten_aggregations(aggs: dict) -> list[dict]:
+    """Recursively flatten OpenSearch bucket aggregations into a list of row dicts.
+
+    Handles single-level and nested terms aggregations. For each agg key that
+    has a 'buckets' list, the bucket key becomes a column value. Leaf buckets
+    contribute a 'count' column from doc_count.
+
+    Example (two-level terms agg):
+        {"by_service": {"buckets": [
+            {"key": "payment-svc", "top_messages": {"buckets": [
+                {"key": "Upstream timeout", "doc_count": 847}
+            ]}}
+        ]}}
+    →   [{"by_service": "payment-svc", "top_messages": "Upstream timeout", "count": 847}]
+    """
+    bucket_aggs = {k: v for k, v in aggs.items() if isinstance(v, dict) and "buckets" in v}
+    if not bucket_aggs:
+        return []
+
+    agg_name, agg_value = next(iter(bucket_aggs.items()))
+    rows: list[dict] = []
+
+    for bucket in agg_value.get("buckets", []):
+        base: dict = {agg_name: bucket.get("key")}
+        nested = {k: v for k, v in bucket.items() if isinstance(v, dict) and "buckets" in v}
+        if nested:
+            for nested_row in _flatten_aggregations(nested):
+                rows.append({**base, **nested_row})
+        else:
+            rows.append({**base, "count": bucket.get("doc_count", 0)})
+
+    return rows
+
+
 def execute_opensearch(
     source_id: str,
     query: str | dict,
@@ -110,9 +144,22 @@ def execute_opensearch(
             "error": f"query must be a JSON string or dict, got {type(query).__name__}",
         }
 
+    # read_only: block mutation operations in the DSL body
+    if constraints.get("read_only"):
+        mutation_keys = {"_delete_by_query", "_update_by_query", "_bulk"}
+        body_str = json.dumps(query_body)
+        for key in mutation_keys:
+            if key in body_str:
+                return {
+                    "status": "error",
+                    "error": f"read_only constraint violated: DSL contains '{key}'",
+                }
+
     max_rows = min(int(constraints.get("max_rows", 100)), 1000)
     timeout_seconds = constraints.get("timeout_seconds", 30)
-    query_body = {**query_body, "size": max_rows}
+    # Only set size if the query isn't aggregation-only (size=0 means agg-only)
+    if query_body.get("size", -1) != 0:
+        query_body = {**query_body, "size": max_rows}
 
     try:
         client = _os_client(endpoint)
@@ -130,10 +177,15 @@ def execute_opensearch(
             }
         return {"status": "error", "error": f"OpenSearch search failed: {e}"}
 
-    rows = [
-        hit.get("_source", {})
-        for hit in response.get("hits", {}).get("hits", [])
-    ]
+    # Aggregation response takes priority over hits
+    aggs = response.get("aggregations", {})
+    if aggs:
+        rows = _flatten_aggregations(aggs)
+    else:
+        rows = [
+            hit.get("_source", {})
+            for hit in response.get("hits", {}).get("hits", [])
+        ]
     return {
         "status": "complete",
         "rows": rows,
