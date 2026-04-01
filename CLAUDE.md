@@ -1,5 +1,12 @@
 # CLAUDE.md — clAWS project context for Claude Code
 
+## Project management
+
+- Versioning: **semver2** (semantic versioning 2.0.0)
+- Changelog: **Keep a Changelog** format (`CHANGELOG.md`)
+- Work tracking: **GitHub** — projects, milestones, issues, labels
+- Do **not** use CLAUDE.md or standalone files for tracking work items
+
 ## What this is
 
 clAWS is an open-source reference architecture for building enterprise-grade
