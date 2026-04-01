@@ -23,7 +23,7 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
-    "moto[athena,s3,dynamodb,glue]>=5.0",
+    "pytest-substrate @ file:///Users/scttfrdmn/src/substrate/python",
 ]
 
 cdk = [
@@ -53,3 +53,8 @@ python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tools.*.tests.*", "tools.conftest"]
+disallow_untyped_defs = false

@@ -1,26 +1,25 @@
 """clAWS discover tool — find data sources matching a topic."""
 
 import json
-import os
+from typing import Any
 
 import boto3
 
-from tools.shared import audit_log, success, error
-
+from tools.shared import audit_log, error, success
 
 # Source registry backends
 GLUE_CLIENT = None
 OPENSEARCH_CLIENT = None
 
 
-def glue_client():
+def glue_client() -> Any:
     global GLUE_CLIENT
     if GLUE_CLIENT is None:
         GLUE_CLIENT = boto3.client("glue")
     return GLUE_CLIENT
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.discover.
 
     Searches Glue Data Catalog, OpenSearch domains, and S3 inventory
@@ -103,7 +102,10 @@ def _discover_glue(query: str, spaces: list[str], limit: int) -> list[dict]:
                         "id": f"athena:{db_name}.{table['Name']}",
                         "kind": "table",
                         "confidence": min(score, 1.0),
-                        "reason": f"Matches query in {'name' if query_lower.split()[0] in name else 'description'}",
+                        "reason": (
+                            "Matches query in "
+                            + ("name" if query_lower.split()[0] in name else "description")
+                        ),
                     })
 
     except Exception as e:

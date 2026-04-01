@@ -9,7 +9,6 @@ import json
 
 from tools.shared import s3_client
 
-
 # S3 Select pricing
 _PRICE_PER_BYTE_SCANNED = 0.002 / (1024 ** 3)   # $0.002 / GB scanned
 _PRICE_PER_BYTE_RETURNED = 0.0007 / (1024 ** 3)  # $0.0007 / GB returned
@@ -76,7 +75,10 @@ def execute_s3_select(
         return {"status": "error", "error": f"Could not parse source_id '{source_id}': {e}"}
 
     if not bucket or not key:
-        return {"status": "error", "error": f"Invalid S3 source_id (missing bucket or key): {source_id}"}
+        return {
+            "status": "error",
+            "error": f"Invalid S3 source_id (missing bucket or key): {source_id}",
+        }
 
     input_ser = _input_serialization(key, constraints)
 
@@ -99,7 +101,7 @@ def execute_s3_select(
     except s3_client().exceptions.NoSuchKey:
         return {"status": "error", "error": f"Object not found: s3://{bucket}/{key}"}
     except Exception as e:
-        error_code = getattr(getattr(e, "response", {}).get("Error", {}), "get", lambda k, d=None: d)("Code", "")
+        error_code = (getattr(e, "response", {}) or {}).get("Error", {}).get("Code", "")
         if error_code == "NoSuchKey":
             return {"status": "error", "error": f"Object not found: s3://{bucket}/{key}"}
         return {"status": "error", "error": f"S3 Select failed: {e}"}
@@ -116,10 +118,9 @@ def execute_s3_select(
                 for line in raw.split("\n"):
                     line = line.strip()
                     if line:
-                        try:
+                        import contextlib
+                        with contextlib.suppress(json.JSONDecodeError):
                             rows.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            pass  # skip malformed lines
             elif "Stats" in event:
                 stats = event["Stats"]["Details"]
                 bytes_scanned = stats.get("BytesScanned", 0)

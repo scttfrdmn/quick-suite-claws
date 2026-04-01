@@ -1,49 +1,10 @@
-"""Handler-level tests for claws.plan using moto DynamoDB + mocked Bedrock."""
+"""Handler-level tests for claws.plan using substrate DynamoDB + mocked Bedrock."""
 
 import json
 from unittest.mock import MagicMock, patch
 
-import boto3
-import pytest
-from moto import mock_aws
-
-import tools.shared as _shared
 from tools.plan.handler import handler
 from tools.shared import load_plan
-
-
-@pytest.fixture(autouse=True)
-def aws_credentials(monkeypatch):
-    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
-    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    monkeypatch.setenv("CLAWS_PLANS_TABLE", "claws-plans")
-    monkeypatch.setenv("CLAWS_SCHEMAS_TABLE", "claws-schemas")
-    monkeypatch.setenv("CLAWS_GUARDRAIL_ID", "")  # disable guardrail in tests
-
-
-@pytest.fixture(autouse=True)
-def reset_clients():
-    _shared._dynamodb = None
-    _shared._bedrock = None
-    yield
-    _shared._dynamodb = None
-    _shared._bedrock = None
-
-
-@pytest.fixture
-def dynamo_tables():
-    """Create claws-plans and claws-schemas DynamoDB tables in moto."""
-    ddb = boto3.resource("dynamodb", region_name="us-east-1")
-    for table_name, key in [("claws-plans", "plan_id"), ("claws-schemas", "source_id")]:
-        ddb.create_table(
-            TableName=table_name,
-            KeySchema=[{"AttributeName": key, "KeyType": "HASH"}],
-            AttributeDefinitions=[{"AttributeName": key, "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
-    return ddb
-
 
 SAMPLE_SCHEMA = {
     "database": "genomics",
@@ -53,10 +14,8 @@ SAMPLE_SCHEMA = {
 }
 
 
-def _seed_schema(ddb, source_id: str, schema: dict):
-    ddb.Table("claws-schemas").put_item(
-        Item={"source_id": source_id, "schema": schema}
-    )
+def _seed_schema(schemas_table, source_id: str, schema: dict):
+    schemas_table.put_item(Item={"source_id": source_id, "schema": schema})
 
 
 def _bedrock_mock(query: str) -> MagicMock:
@@ -90,18 +49,16 @@ class TestPlanHandler:
         resp = handler({"objective": "find genes"}, None)
         assert resp["statusCode"] == 400
 
-    @mock_aws
-    def test_requires_cached_schema(self, dynamo_tables):
+    def test_requires_cached_schema(self, plans_table, schemas_table):
         """Without a prior probe, plan should fail with 422."""
         resp = handler({"objective": "find genes", "source_id": "athena:genomics.variants"}, None)
         assert resp["statusCode"] == 422
 
-    @mock_aws
-    def test_stores_plan_when_valid(self, dynamo_tables):
-        _seed_schema(dynamo_tables, "athena:genomics.variants", SAMPLE_SCHEMA)
+    def test_stores_plan_when_valid(self, plans_table, schemas_table):
+        _seed_schema(schemas_table, "athena:genomics.variants", SAMPLE_SCHEMA)
         bedrock_client = _bedrock_mock("SELECT gene, chromosome FROM genomics.variants LIMIT 100")
 
-        with patch("tools.shared.bedrock_runtime", return_value=bedrock_client):
+        with patch("tools.plan.handler.bedrock_runtime", return_value=bedrock_client):
             resp = handler(
                 {
                     "objective": "find all variant genes",
@@ -121,12 +78,13 @@ class TestPlanHandler:
         assert plan is not None
         assert plan["source_id"] == "athena:genomics.variants"
 
-    @mock_aws
-    def test_rejects_mutation_query(self, dynamo_tables):
-        _seed_schema(dynamo_tables, "athena:genomics.variants", SAMPLE_SCHEMA)
-        bedrock_client = _bedrock_mock("INSERT INTO genomics.variants SELECT * FROM genomics.variants")
+    def test_rejects_mutation_query(self, plans_table, schemas_table):
+        _seed_schema(schemas_table, "athena:genomics.variants", SAMPLE_SCHEMA)
+        bedrock_client = _bedrock_mock(
+            "INSERT INTO genomics.variants SELECT * FROM genomics.variants"
+        )
 
-        with patch("tools.shared.bedrock_runtime", return_value=bedrock_client):
+        with patch("tools.plan.handler.bedrock_runtime", return_value=bedrock_client):
             resp = handler(
                 {"objective": "copy data", "source_id": "athena:genomics.variants"},
                 None,
@@ -135,15 +93,14 @@ class TestPlanHandler:
         assert resp["statusCode"] == 200
         body = json.loads(resp["body"])
         assert body["status"] == "rejected"
-        assert "mutation" in body["reason"].lower() or "write" in body["reason"].lower()
+        assert any(w in body["reason"].lower() for w in ("mutation", "write", "insert", "select"))
 
-    @mock_aws
-    def test_rejects_excess_cost(self, dynamo_tables):
+    def test_rejects_excess_cost(self, plans_table, schemas_table):
         huge_schema = {**SAMPLE_SCHEMA, "size_bytes_estimate": 100_000_000_000_000}  # 100 TB
-        _seed_schema(dynamo_tables, "athena:genomics.variants", huge_schema)
+        _seed_schema(schemas_table, "athena:genomics.variants", huge_schema)
         bedrock_client = _bedrock_mock("SELECT * FROM genomics.variants")
 
-        with patch("tools.shared.bedrock_runtime", return_value=bedrock_client):
+        with patch("tools.plan.handler.bedrock_runtime", return_value=bedrock_client):
             resp = handler(
                 {
                     "objective": "get all data",

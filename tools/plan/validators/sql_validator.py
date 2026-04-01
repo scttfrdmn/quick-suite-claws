@@ -6,7 +6,6 @@ and constraint violations before the query is included in a plan.
 
 import re
 
-
 # Patterns that indicate a mutation — these MUST cause rejection
 MUTATION_PATTERNS = [
     r"\bINSERT\b",
@@ -57,8 +56,9 @@ def validate_sql(query: str, constraints: dict) -> dict:
 
     # Check for mutation patterns
     for pattern in MUTATION_PATTERNS:
-        if re.search(pattern, query_upper):
-            keyword = re.search(pattern, query_upper).group()
+        m = re.search(pattern, query_upper)
+        if m:
+            keyword = m.group()
             return {
                 "ok": False,
                 "reason": f"Mutation keyword detected: {keyword}. Only read-only queries allowed.",
@@ -84,7 +84,7 @@ def validate_sql(query: str, constraints: dict) -> dict:
         if re.search(pattern, query_upper):
             warnings.append(message)
 
-    result = {"ok": True}
+    result: dict = {"ok": True}
     if warnings:
         result["warnings"] = warnings
 

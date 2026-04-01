@@ -4,7 +4,7 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import boto3
@@ -15,21 +15,21 @@ _dynamodb = None
 _bedrock = None
 
 
-def s3_client():
+def s3_client() -> Any:
     global _s3
     if _s3 is None:
         _s3 = boto3.client("s3")
     return _s3
 
 
-def dynamodb_resource():
+def dynamodb_resource() -> Any:
     global _dynamodb
     if _dynamodb is None:
         _dynamodb = boto3.resource("dynamodb")
     return _dynamodb
 
 
-def bedrock_runtime():
+def bedrock_runtime() -> Any:
     global _bedrock
     if _bedrock is None:
         _bedrock = boto3.client("bedrock-runtime")
@@ -62,11 +62,11 @@ def new_export_id() -> str:
 # --- Audit logging ---
 
 def audit_log(tool: str, principal: str, inputs: dict, outputs: dict,
-              cost: float | None = None, guardrail_trace: dict | None = None):
+              cost: float | None = None, guardrail_trace: dict | None = None) -> None:
     """Write a structured audit record. In production this goes to
     CloudWatch Logs / S3 / OpenSearch for compliance."""
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "tool": tool,
         "principal": principal,
         "inputs": inputs,
@@ -106,7 +106,7 @@ def store_plan(plan_id: str, plan: dict) -> None:
     table = dynamodb_resource().Table(PLANS_TABLE)
     table.put_item(Item={
         "plan_id": plan_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "ttl": int(time.time()) + 86400,  # 24h TTL
         **plan,
     })
@@ -116,7 +116,8 @@ def load_plan(plan_id: str) -> dict | None:
     """Load a plan from DynamoDB."""
     table = dynamodb_resource().Table(PLANS_TABLE)
     resp = table.get_item(Key={"plan_id": plan_id})
-    return resp.get("Item")
+    item: dict | None = resp.get("Item")
+    return item
 
 
 # --- Schema cache ---
@@ -125,7 +126,8 @@ def get_cached_schema(source_id: str) -> dict | None:
     """Retrieve a cached schema from DynamoDB (populated by probe)."""
     table = dynamodb_resource().Table(SCHEMAS_TABLE)
     resp = table.get_item(Key={"source_id": source_id})
-    return resp.get("Item", {}).get("schema")
+    schema: dict | None = resp.get("Item", {}).get("schema")
+    return schema
 
 
 def cache_schema(source_id: str, schema: dict) -> None:
@@ -133,7 +135,7 @@ def cache_schema(source_id: str, schema: dict) -> None:
     table = dynamodb_resource().Table(SCHEMAS_TABLE)
     table.put_item(Item={
         "source_id": source_id,
-        "cached_at": datetime.now(timezone.utc).isoformat(),
+        "cached_at": datetime.now(UTC).isoformat(),
         "ttl": int(time.time()) + 3600,  # 1h TTL
         "schema": schema,
     })
@@ -193,7 +195,7 @@ def success(body: dict, status_code: int = 200) -> dict:
     }
 
 
-def error(message, status_code: int = 400) -> dict:
+def error(message: Any, status_code: int = 400) -> dict:
     from tools.errors import ClawsError
     if isinstance(message, ClawsError):
         return {

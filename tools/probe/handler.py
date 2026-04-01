@@ -3,14 +3,18 @@
 import json
 import os
 import time
+from typing import Any
 
 import boto3
 
-from tools.shared import (
-    audit_log, cache_schema, scan_payload, success, error,
-)
 from tools.errors import ValidationError
-
+from tools.shared import (
+    audit_log,
+    cache_schema,
+    error,
+    scan_payload,
+    success,
+)
 
 GLUE_CLIENT = None
 ATHENA_CLIENT = None
@@ -19,21 +23,21 @@ WORKGROUP = os.environ.get("CLAWS_ATHENA_WORKGROUP", "claws-readonly")
 OUTPUT_LOCATION = os.environ.get("CLAWS_ATHENA_OUTPUT", "s3://claws-athena-results/")
 
 
-def glue_client():
+def glue_client() -> Any:
     global GLUE_CLIENT
     if GLUE_CLIENT is None:
         GLUE_CLIENT = boto3.client("glue")
     return GLUE_CLIENT
 
 
-def athena_client():
+def athena_client() -> Any:
     global ATHENA_CLIENT
     if ATHENA_CLIENT is None:
         ATHENA_CLIENT = boto3.client("athena")
     return ATHENA_CLIENT
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.probe.
 
     Inspects a source: schema, sample rows, size estimates, cost estimates.
@@ -88,7 +92,7 @@ def _probe_athena(qualified_name: str, mode: str, sample_rows: int) -> dict:
         return {"error": f"Expected database.table, got: {qualified_name}"}
 
     database, table_name = parts
-    result = {}
+    result: dict = {}
 
     try:
         # Get schema from Glue
@@ -97,18 +101,15 @@ def _probe_athena(qualified_name: str, mode: str, sample_rows: int) -> dict:
 
         columns = []
         for col in table_data.get("StorageDescriptor", {}).get("Columns", []):
-            columns.append({
-                "name": col["Name"],
-                "type": col["Type"],
-                "comment": col.get("Comment", ""),
-            })
+            entry: dict = {"name": col["Name"], "type": col["Type"]}
+            if comment := col.get("Comment", ""):
+                entry["comment"] = comment
+            columns.append(entry)
         for col in table_data.get("PartitionKeys", []):
-            columns.append({
-                "name": col["Name"],
-                "type": col["Type"],
-                "comment": col.get("Comment", ""),
-                "partition_key": True,
-            })
+            entry = {"name": col["Name"], "type": col["Type"], "partition_key": True}
+            if comment := col.get("Comment", ""):
+                entry["comment"] = comment
+            columns.append(entry)
 
         result["schema"] = {
             "database": database,
@@ -166,10 +167,9 @@ def _sample_athena(database: str, table_name: str, limit: int) -> list[dict]:
         start_time = time.time()
         while True:
             if time.time() - start_time > 30:
-                try:
+                import contextlib
+                with contextlib.suppress(Exception):
                     athena_client().stop_query_execution(QueryExecutionId=execution_id)
-                except Exception:
-                    pass
                 return []
 
             status_resp = athena_client().get_query_execution(QueryExecutionId=execution_id)
@@ -197,7 +197,7 @@ def _sample_athena(database: str, table_name: str, limit: int) -> list[dict]:
                 values = [datum.get("VarCharValue", "") for datum in row["Data"]]
                 if values == columns:  # skip header row
                     continue
-                rows.append(dict(zip(columns, values)))
+                rows.append(dict(zip(columns, values, strict=False)))
 
         return rows
 

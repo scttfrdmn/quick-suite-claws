@@ -45,8 +45,8 @@ def estimate_cost(source_id: str, query: str, schema: dict) -> dict:
 
 def _estimate_athena(query: str, schema: dict) -> dict:
     """Estimate Athena query cost based on table size and query structure."""
-    # Base estimate: full table scan
-    table_size = schema.get("size_bytes_estimate", 0)
+    # Base estimate: full table scan (cast away Decimal from DynamoDB deserialization)
+    table_size = int(schema.get("size_bytes_estimate", 0))
     if table_size == 0:
         # Unknown size — use conservative estimate
         return {

@@ -7,25 +7,32 @@ contextual grounding checks.
 
 import json
 import os
+from typing import Any
 
 from tools.shared import (
-    audit_log, bedrock_runtime, load_result, store_result, new_run_id,
-    scan_payload, success, error, GUARDRAIL_ID, GUARDRAIL_VERSION,
+    GUARDRAIL_ID,
+    GUARDRAIL_VERSION,
+    audit_log,
+    bedrock_runtime,
+    error,
+    load_result,
+    new_run_id,
+    scan_payload,
+    store_result,
+    success,
 )
-
 
 MODEL_ID = os.environ.get("CLAWS_REFINE_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0")
 
 ALLOWED_OPERATIONS = {"dedupe", "rank", "rank_by_n", "filter", "summarize", "normalize"}
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.refine."""
     body = json.loads(event.get("body", "{}")) if isinstance(event.get("body"), str) else event
     run_id = body.get("run_id", "")
     operations = body.get("operations", [])
     top_k = body.get("top_k", 25)
-    output_format = body.get("output_format", "json")
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
 
     if not run_id:
@@ -33,8 +40,11 @@ def handler(event, context):
     if not operations:
         return error("operations is required")
 
-    # Validate operations
-    invalid = set(operations) - ALLOWED_OPERATIONS
+    # Validate operations — rank_by_<field> is a valid rank variant
+    invalid = [
+        op for op in operations
+        if op not in ALLOWED_OPERATIONS and not op.startswith("rank_by_")
+    ]
     if invalid:
         return error(f"Invalid operations: {invalid}. Allowed: {ALLOWED_OPERATIONS}")
 
@@ -129,7 +139,7 @@ def _rank(rows: list[dict], op: str) -> list[dict]:
     if field is None:
         return rows
 
-    def sort_key(row):
+    def sort_key(row: dict) -> float:
         try:
             return -float(row.get(field, 0))
         except (ValueError, TypeError):
@@ -150,13 +160,12 @@ def _normalize(rows: list[dict]) -> list[dict]:
             # Lowercase, underscore field names
             key = k.lower().replace(" ", "_").replace("-", "_")
             # Try to parse numeric strings
-            try:
-                v = int(v)
-            except (ValueError, TypeError):
+            for cast in (int, float):
                 try:
-                    v = float(v)
+                    v = cast(v)
+                    break
                 except (ValueError, TypeError):
-                    pass
+                    continue
             norm[key] = v
         normalized.append(norm)
     return normalized

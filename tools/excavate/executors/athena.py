@@ -6,6 +6,7 @@ byte-scan limits enforced at the workgroup level.
 
 import os
 import time
+from typing import Any
 
 import boto3
 
@@ -19,14 +20,14 @@ OUTPUT_LOCATION = os.environ.get("CLAWS_ATHENA_OUTPUT", "s3://claws-athena-resul
 PRICE_PER_BYTE = 5.0 / (1024 ** 4)  # $5 per TB
 
 
-def _athena():
+def _athena() -> Any:
     global ATHENA_CLIENT
     if ATHENA_CLIENT is None:
         ATHENA_CLIENT = boto3.client("athena")
     return ATHENA_CLIENT
 
 
-def _s3():
+def _s3() -> Any:
     global S3_CLIENT
     if S3_CLIENT is None:
         S3_CLIENT = boto3.client("s3")
@@ -82,10 +83,9 @@ def execute_athena(
         elapsed = time.time() - start_time
         if elapsed > timeout:
             # Attempt to cancel
-            try:
+            import contextlib
+            with contextlib.suppress(Exception):
                 _athena().stop_query_execution(QueryExecutionId=execution_id)
-            except Exception:
-                pass
             return {"status": "timeout", "error": f"Query timed out after {timeout}s"}
 
         try:
@@ -133,7 +133,7 @@ def execute_athena(
                 if values == columns:
                     continue
 
-                rows.append(dict(zip(columns, values)))
+                rows.append(dict(zip(columns, values, strict=False)))
 
     except Exception as e:
         return {

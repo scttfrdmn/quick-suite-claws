@@ -9,19 +9,26 @@ LLM reasoning happens here. Bedrock Guardrails filters both input
 
 import json
 import os
+from typing import Any
 
-from tools.shared import (
-    audit_log, bedrock_runtime, get_cached_schema, new_plan_id,
-    store_plan, success, error, GUARDRAIL_ID, GUARDRAIL_VERSION,
-)
-from tools.plan.validators.sql_validator import validate_sql
 from tools.plan.validators.cost_estimator import estimate_cost
-
+from tools.plan.validators.sql_validator import validate_sql
+from tools.shared import (
+    GUARDRAIL_ID,
+    GUARDRAIL_VERSION,
+    audit_log,
+    bedrock_runtime,
+    error,
+    get_cached_schema,
+    new_plan_id,
+    store_plan,
+    success,
+)
 
 MODEL_ID = os.environ.get("CLAWS_PLAN_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0")
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.plan."""
     body = json.loads(event.get("body", "{}")) if isinstance(event.get("body"), str) else event
     objective = body.get("objective", "")
@@ -92,7 +99,9 @@ def handler(event, context):
 
     parsed = _parse_model_response(model_text)
     if parsed is None:
-        audit_log("plan", principal, body, {"status": "rejected", "reason": "Failed to parse model response"})
+        audit_log("plan", principal, body, {
+            "status": "rejected", "reason": "Failed to parse model response",
+        })
         return error("Failed to parse plan from model response", status_code=502)
 
     generated_query = parsed["query"]
@@ -113,13 +122,14 @@ def handler(event, context):
     # Check cost against constraints
     max_cost = constraints.get("max_cost_dollars")
     if max_cost and cost_est["estimated_cost_dollars"] > max_cost:
-        audit_log("plan", principal, body, {
-            "status": "rejected",
-            "reason": f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f} exceeds limit ${max_cost:.2f}",
-        })
+        cost_msg = (
+            f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f}"
+            f" exceeds limit ${max_cost:.2f}"
+        )
+        audit_log("plan", principal, body, {"status": "rejected", "reason": cost_msg})
         return success({
             "status": "rejected",
-            "reason": f"Estimated cost ${cost_est['estimated_cost_dollars']:.2f} exceeds limit ${max_cost:.2f}",
+            "reason": cost_msg,
             "estimated_cost": f"${cost_est['estimated_cost_dollars']:.2f}",
         })
 
@@ -184,7 +194,13 @@ def _build_plan_prompt(
     query_type: str,
 ) -> str:
     """Build the prompt for query generation."""
-    schema_text = json.dumps(schema, indent=2)
+    from decimal import Decimal
+    def _decimal_default(x: object) -> object:
+        if isinstance(x, Decimal):
+            return int(x) if x == int(x) else float(x)
+        return str(x)
+
+    schema_text = json.dumps(schema, indent=2, default=_decimal_default)
     constraints_text = json.dumps(constraints, indent=2)
 
     return f"""You are a query planner for the clAWS excavation system. Your job is to
@@ -231,14 +247,16 @@ def _parse_model_response(text: str) -> dict | None:
     text = text.strip()
 
     try:
-        return json.loads(text)
+        parsed: dict = json.loads(text)
+        return parsed
     except json.JSONDecodeError:
         # Try to extract JSON from the response
         start = text.find("{")
         end = text.rfind("}") + 1
         if start >= 0 and end > start:
             try:
-                return json.loads(text[start:end])
+                extracted: dict = json.loads(text[start:end])
+                return extracted
             except json.JSONDecodeError:
                 pass
     return None

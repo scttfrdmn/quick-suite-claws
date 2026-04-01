@@ -1,6 +1,5 @@
 """Tests for the SQL validator."""
 
-import pytest
 
 from tools.plan.validators.sql_validator import validate_sql
 

@@ -7,15 +7,21 @@ Results are scanned via ApplyGuardrail before return to agent.
 
 import json
 
-from tools.shared import (
-    audit_log, load_plan, new_run_id, store_result, scan_payload,
-    success, error,
-)
-from tools.errors import NotFoundError, ForbiddenError
+from typing import Any
+
+from tools.errors import ForbiddenError, NotFoundError
 from tools.excavate.executors.athena import execute_athena
 from tools.excavate.executors.opensearch import execute_opensearch
 from tools.excavate.executors.s3_select import execute_s3_select
-
+from tools.shared import (
+    audit_log,
+    error,
+    load_plan,
+    new_run_id,
+    scan_payload,
+    store_result,
+    success,
+)
 
 EXECUTORS = {
     "athena_sql": execute_athena,
@@ -24,7 +30,7 @@ EXECUTORS = {
 }
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.excavate."""
     body = json.loads(event.get("body", "{}")) if isinstance(event.get("body"), str) else event
     plan_id = body.get("plan_id", "")

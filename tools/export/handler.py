@@ -5,17 +5,21 @@ Provenance chain is included when requested.
 """
 
 import json
-from datetime import datetime, timezone
-
-import boto3
+from datetime import UTC, datetime
+from typing import Any
 
 from tools.shared import (
-    audit_log, load_result, load_plan, scan_payload, new_export_id,
-    s3_client, success, error,
+    audit_log,
+    error,
+    load_result,
+    new_export_id,
+    s3_client,
+    scan_payload,
+    success,
 )
 
 
-def handler(event, context):
+def handler(event: dict, context: Any) -> dict:
     """Lambda handler for claws.export."""
     body = json.loads(event.get("body", "{}")) if isinstance(event.get("body"), str) else event
     run_id = body.get("run_id", "")
@@ -85,7 +89,7 @@ def handler(event, context):
 def _build_provenance(run_id: str, principal: str, destination: dict) -> dict:
     """Build a provenance record tracing the full excavation chain."""
     return {
-        "export_timestamp": datetime.now(timezone.utc).isoformat(),
+        "export_timestamp": datetime.now(UTC).isoformat(),
         "principal": principal,
         "run_id": run_id,
         "destination": destination,
@@ -96,7 +100,7 @@ def _build_provenance(run_id: str, principal: str, destination: dict) -> dict:
     }
 
 
-def _export_to_s3(uri: str, payload, provenance: dict | None, export_id: str) -> dict:
+def _export_to_s3(uri: str, payload: Any, provenance: dict | None, export_id: str) -> dict:
     """Export results to S3."""
     try:
         # Parse s3://bucket/key
@@ -132,13 +136,13 @@ def _export_to_s3(uri: str, payload, provenance: dict | None, export_id: str) ->
         return {"status": "error", "error": f"S3 export failed: {e}"}
 
 
-def _export_to_eventbridge(uri: str, payload, export_id: str) -> dict:
+def _export_to_eventbridge(uri: str, payload: Any, export_id: str) -> dict:
     """Export results as an EventBridge event."""
     # TODO: Implement EventBridge PutEvents
     return {"status": "error", "error": "EventBridge export not yet implemented"}
 
 
-def _export_to_callback(uri: str, payload, export_id: str) -> dict:
+def _export_to_callback(uri: str, payload: Any, export_id: str) -> dict:
     """Export results via HTTP callback."""
     # TODO: Implement callback with signature verification
     return {"status": "error", "error": "Callback export not yet implemented"}
