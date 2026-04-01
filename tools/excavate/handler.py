@@ -11,6 +11,7 @@ from tools.shared import (
     audit_log, load_plan, new_run_id, store_result, scan_payload,
     success, error,
 )
+from tools.errors import NotFoundError, ForbiddenError
 from tools.excavate.executors.athena import execute_athena
 from tools.excavate.executors.opensearch import execute_opensearch
 from tools.excavate.executors.s3_select import execute_s3_select
@@ -40,7 +41,7 @@ def handler(event, context):
     if plan_id:
         plan = load_plan(plan_id)
         if plan is None:
-            return error(f"Plan {plan_id} not found", status_code=404)
+            return error(NotFoundError(f"Plan {plan_id} not found"))
 
         # Verify the query matches the plan — prevents bait-and-switch
         if plan.get("query") != query:
@@ -48,10 +49,9 @@ def handler(event, context):
                 "status": "rejected",
                 "reason": "Query does not match stored plan",
             })
-            return error(
-                "Query does not match stored plan. Submit the exact query from the plan.",
-                status_code=403,
-            )
+            return error(ForbiddenError(
+                "Query does not match stored plan. Submit the exact query from the plan."
+            ))
 
     # Get executor for this query type
     executor = EXECUTORS.get(query_type)

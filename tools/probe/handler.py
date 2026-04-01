@@ -1,16 +1,22 @@
 """clAWS probe tool — inspect a discovered source."""
 
 import json
+import os
+import time
 
 import boto3
 
 from tools.shared import (
     audit_log, cache_schema, scan_payload, success, error,
 )
+from tools.errors import ValidationError
 
 
 GLUE_CLIENT = None
 ATHENA_CLIENT = None
+
+WORKGROUP = os.environ.get("CLAWS_ATHENA_WORKGROUP", "claws-readonly")
+OUTPUT_LOCATION = os.environ.get("CLAWS_ATHENA_OUTPUT", "s3://claws-athena-results/")
 
 
 def glue_client():
@@ -45,7 +51,7 @@ def handler(event, context):
     # Parse source_id: "athena:database.table" or "opensearch:index" etc.
     backend, _, qualified_name = source_id.partition(":")
     if not qualified_name:
-        return error(f"Invalid source_id format: {source_id}")
+        return error(ValidationError(f"Invalid source_id format: {source_id}"))
 
     result = {"source_id": source_id}
 
@@ -141,10 +147,62 @@ def _probe_athena(qualified_name: str, mode: str, sample_rows: int) -> dict:
 
 
 def _sample_athena(database: str, table_name: str, limit: int) -> list[dict]:
-    """Run a LIMIT query to get sample rows."""
-    # TODO: Use Athena StartQueryExecution with read-only workgroup
-    # For now, return placeholder indicating the integration point
-    return []
+    """Run a LIMIT query against Athena to get sample rows.
+
+    Uses the read-only workgroup. Returns an empty list on any failure
+    so that probe never fails hard due to sampling errors.
+    """
+    try:
+        response = athena_client().start_query_execution(
+            QueryString=f"SELECT * FROM {database}.{table_name} LIMIT {limit}",
+            WorkGroup=WORKGROUP,
+            ResultConfiguration={
+                "OutputLocation": f"{OUTPUT_LOCATION}_probe/",
+            },
+        )
+        execution_id = response["QueryExecutionId"]
+
+        # Poll for completion (30s timeout)
+        start_time = time.time()
+        while True:
+            if time.time() - start_time > 30:
+                try:
+                    athena_client().stop_query_execution(QueryExecutionId=execution_id)
+                except Exception:
+                    pass
+                return []
+
+            status_resp = athena_client().get_query_execution(QueryExecutionId=execution_id)
+            state = status_resp["QueryExecution"]["Status"]["State"]
+
+            if state == "SUCCEEDED":
+                break
+            elif state in ("FAILED", "CANCELLED"):
+                return []
+
+            time.sleep(1)
+
+        # Fetch results, skip header row
+        rows: list[dict] = []
+        paginator = athena_client().get_paginator("get_query_results")
+        columns = None
+        for page in paginator.paginate(QueryExecutionId=execution_id):
+            result_set = page["ResultSet"]
+            if columns is None:
+                columns = [
+                    col["Name"]
+                    for col in result_set["ResultSetMetadata"]["ColumnInfo"]
+                ]
+            for row in result_set["Rows"]:
+                values = [datum.get("VarCharValue", "") for datum in row["Data"]]
+                if values == columns:  # skip header row
+                    continue
+                rows.append(dict(zip(columns, values)))
+
+        return rows
+
+    except Exception:
+        return []
 
 
 def _probe_opensearch(qualified_name: str, mode: str, sample_rows: int) -> dict:

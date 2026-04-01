@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "claws"
 version = "0.1.0"
 description = "Controlled excavation tools for agents on Amazon Bedrock AgentCore"
 readme = "README.md"
-license = {text = "Apache-2.0"}
+license = "Apache-2.0"
 requires-python = ">=3.12"
 authors = [
     {name = "Scott Friedman"},
@@ -23,13 +23,17 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
-    "moto[athena,s3,dynamodb]>=5.0",
+    "moto[athena,s3,dynamodb,glue]>=5.0",
 ]
 
 cdk = [
     "aws-cdk-lib>=2.150.0",
     "constructs>=10.0.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tools*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tools"]

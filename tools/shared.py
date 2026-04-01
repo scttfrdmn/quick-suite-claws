@@ -193,7 +193,14 @@ def success(body: dict, status_code: int = 200) -> dict:
     }
 
 
-def error(message: str, status_code: int = 400) -> dict:
+def error(message, status_code: int = 400) -> dict:
+    from tools.errors import ClawsError
+    if isinstance(message, ClawsError):
+        return {
+            "statusCode": message.status_code,
+            "headers": {"Content-Type": "application/json"},
+            "body": json.dumps({"error": message.message}),
+        }
     return {
         "statusCode": status_code,
         "headers": {"Content-Type": "application/json"},
