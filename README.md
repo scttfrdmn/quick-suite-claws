@@ -69,15 +69,21 @@ PII/PHI, prompt injection, denied topics, and content violations at LLM I/O and 
 
 See [docs/safety-model.md](docs/safety-model.md) for attachment points and the threat model.
 
+## Requirements
+
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (package manager)
+- Node.js 18+ (for AWS CDK CLI)
+- AWS CDK v2: `npm install -g aws-cdk`
+- AWS account with Bedrock model access enabled for your region
+- AWS credentials configured (`aws configure` or IAM role)
+
 ## Quick start
 
 ```bash
-# Prerequisites: Python 3.12+, AWS CDK v2, AWS credentials configured
-# See docs/getting-started.md for the full walkthrough
-
 git clone https://github.com/scttfrdmn/claws.git
 cd claws
-pip install -e ".[dev,cdk]"
+uv sync --extra dev --extra cdk
 
 cd infra/cdk
 cdk deploy --all
@@ -88,6 +94,38 @@ cdk deploy --all
 #   ClawsGatewayStack     — AgentCore Gateway + tool endpoint registration
 #   ClawsPolicyStack      — Cedar policy deployment + gateway association
 ```
+
+See [docs/getting-started.md](docs/getting-started.md) for the full walkthrough including
+Bedrock model access setup, Cedar policy authoring, and running your first excavation.
+
+## Development
+
+```bash
+# Install dev dependencies
+uv sync --extra dev
+
+# Run the test suite (155 tests, no AWS credentials required)
+uv run pytest tools/ -v
+
+# Lint and format
+uv run ruff check tools/
+uv run ruff format tools/
+
+# Type check
+uv run mypy tools/
+```
+
+Live integration tests against real AWS (manual, pre-release):
+
+```bash
+export CLAWS_TEST_ATHENA_DB=my_db
+export CLAWS_TEST_ATHENA_TABLE=my_table
+export CLAWS_TEST_ATHENA_OUTPUT=s3://my-bucket/results/
+export CLAWS_TEST_RUNS_BUCKET=my-claws-runs
+uv run pytest tools/tests/live/ -v -m live
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch conventions, commit style, and the PR process.
 
 ## Documentation
 
@@ -109,6 +147,10 @@ cdk deploy --all
 
 The full API specification is in [api/openapi.yaml](api/openapi.yaml).
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-Apache 2.0
+Apache 2.0 — see [LICENSE](LICENSE).
