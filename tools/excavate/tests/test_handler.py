@@ -131,6 +131,109 @@ class TestExcavateHandler:
         assert body["rows_returned"] == 3
 
 
+class TestResultMetadata:
+    def test_metadata_written_alongside_result(self, aws_resources):
+        """After successful excavate, result_metadata.json is written to S3."""
+        mock_result = {
+            "status": "complete",
+            "rows": [{"gene": "BRCA1", "cohort": "2024", "n": 42}],
+            "bytes_scanned": 237123584,
+            "cost": "$0.22",
+        }
+
+        with patch.dict(
+            "tools.excavate.handler.EXECUTORS",
+            {"athena_sql": lambda **kw: mock_result},
+        ):
+            resp = handler(
+                {
+                    "source_id": "athena:oncology.variant_index",
+                    "query": "SELECT gene, cohort, n FROM oncology.variant_index",
+                    "query_type": "athena_sql",
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert "metadata_uri" in body
+
+        s3 = boto3.client("s3", region_name="us-east-1")
+        obj = s3.get_object(Bucket="claws-runs", Key=f"{body['run_id']}/result_metadata.json")
+        meta = json.loads(obj["Body"].read())
+
+        assert meta["run_id"] == body["run_id"]
+        assert meta["row_count"] == 1
+        assert meta["bytes_scanned"] == 237123584
+        assert meta["cost"] == "$0.22"
+        assert meta["source_id"] == "athena:oncology.variant_index"
+        assert "created_at" in meta
+
+    def test_schema_inferred_from_rows(self, aws_resources):
+        """Schema in metadata reflects actual column names and types from rows."""
+        mock_result = {
+            "status": "complete",
+            "rows": [{"gene": "BRCA1", "n": 42, "score": 0.95, "active": True}],
+            "bytes_scanned": 1024,
+            "cost": "$0.00",
+        }
+
+        with patch.dict(
+            "tools.excavate.handler.EXECUTORS",
+            {"athena_sql": lambda **kw: mock_result},
+        ):
+            resp = handler(
+                {
+                    "source_id": "athena:test.table",
+                    "query": "SELECT gene, n, score, active FROM test.table",
+                    "query_type": "athena_sql",
+                },
+                None,
+            )
+
+        body = json.loads(resp["body"])
+        s3 = boto3.client("s3", region_name="us-east-1")
+        obj = s3.get_object(Bucket="claws-runs", Key=f"{body['run_id']}/result_metadata.json")
+        meta = json.loads(obj["Body"].read())
+
+        schema = {col["name"]: col["type"] for col in meta["schema"]}
+        assert schema["gene"] == "string"
+        assert schema["n"] == "bigint"
+        assert schema["score"] == "double"
+        assert schema["active"] == "boolean"
+
+    def test_metadata_readable_when_no_rows(self, aws_resources):
+        """Empty result set → schema is [] and metadata is still written."""
+        mock_result = {
+            "status": "complete",
+            "rows": [],
+            "bytes_scanned": 0,
+            "cost": "$0.00",
+        }
+
+        with patch.dict(
+            "tools.excavate.handler.EXECUTORS",
+            {"athena_sql": lambda **kw: mock_result},
+        ):
+            resp = handler(
+                {
+                    "source_id": "athena:empty.table",
+                    "query": "SELECT * FROM empty.table WHERE 1=0",
+                    "query_type": "athena_sql",
+                },
+                None,
+            )
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        s3 = boto3.client("s3", region_name="us-east-1")
+        obj = s3.get_object(Bucket="claws-runs", Key=f"{body['run_id']}/result_metadata.json")
+        meta = json.loads(obj["Body"].read())
+
+        assert meta["schema"] == []
+        assert meta["row_count"] == 0
+
+
 class TestOpenSearchExecutor:
     """Tests for execute_opensearch — all mock _os_client since substrate
     has no OpenSearch plugin."""

@@ -20,8 +20,27 @@ from tools.shared import (
     new_run_id,
     scan_payload,
     store_result,
+    store_result_metadata,
     success,
 )
+
+def _infer_schema(rows: list[dict]) -> list[dict]:
+    """Infer column schema from first result row. Returns [] if rows is empty."""
+    if not rows:
+        return []
+    schema = []
+    for name, value in rows[0].items():
+        if isinstance(value, bool):
+            col_type = "boolean"
+        elif isinstance(value, int):
+            col_type = "bigint"
+        elif isinstance(value, float):
+            col_type = "double"
+        else:
+            col_type = "string"
+        schema.append({"name": name, "type": col_type})
+    return schema
+
 
 EXECUTORS = {
     "athena_sql": execute_athena,
@@ -113,10 +132,20 @@ def handler(event: dict, context: Any) -> dict:
             })
 
     # Store results in S3
-    result_uri = store_result(run_id, exec_result.get("rows", []))
+    rows = exec_result.get("rows", [])
+    result_uri = store_result(run_id, rows)
+
+    # Write companion metadata file for downstream consumers (e.g. Compute)
+    metadata_uri = store_result_metadata(
+        run_id=run_id,
+        schema=_infer_schema(rows),
+        row_count=len(rows),
+        bytes_scanned=exec_result.get("bytes_scanned", 0),
+        cost=exec_result.get("cost", "$0.00"),
+        source_id=source_id,
+    )
 
     # Build preview (first 5 rows)
-    rows = exec_result.get("rows", [])
     preview = rows[:5] if rows else []
 
     response_body = {
@@ -126,6 +155,7 @@ def handler(event: dict, context: Any) -> dict:
         "bytes_scanned": exec_result.get("bytes_scanned", 0),
         "cost": exec_result.get("cost", "$0.00"),
         "result_uri": result_uri,
+        "metadata_uri": metadata_uri,
         "result_preview": preview,
     }
 

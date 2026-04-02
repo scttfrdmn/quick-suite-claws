@@ -210,6 +210,34 @@ def store_result(run_id: str, payload: Any) -> str:
     return f"s3://{RUNS_BUCKET}/{key}"
 
 
+def store_result_metadata(
+    run_id: str,
+    schema: list[dict],
+    row_count: int,
+    bytes_scanned: int,
+    cost: str,
+    source_id: str,
+) -> str:
+    """Write result_metadata.json alongside result.json. Returns the S3 URI."""
+    key = f"{run_id}/result_metadata.json"
+    metadata = {
+        "run_id": run_id,
+        "schema": schema,
+        "row_count": row_count,
+        "bytes_scanned": bytes_scanned,
+        "cost": cost,
+        "source_id": source_id,
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    s3_client().put_object(
+        Bucket=RUNS_BUCKET,
+        Key=key,
+        Body=json.dumps(metadata, default=str),
+        ContentType="application/json",
+    )
+    return f"s3://{RUNS_BUCKET}/{key}"
+
+
 def load_result(run_id: str) -> Any:
     """Load excavation results from S3."""
     key = f"{run_id}/result.json"
