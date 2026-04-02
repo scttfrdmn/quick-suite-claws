@@ -4,8 +4,10 @@ Export payload is scanned via ApplyGuardrail as a final content gate.
 Provenance chain is included when requested.
 """
 
+import csv
 import hashlib
 import hmac
+import io
 import json
 import os
 from datetime import UTC, datetime
@@ -14,7 +16,9 @@ from typing import Any
 import boto3
 
 from tools.shared import (
+    RUNS_BUCKET,
     audit_log,
+    dynamodb_resource,
     error,
     load_result,
     new_export_id,
@@ -25,6 +29,17 @@ from tools.shared import (
 
 EVENTS_CLIENT = None
 CALLBACK_SECRET = os.environ.get("CLAWS_CALLBACK_SECRET", "")
+QUICKSIGHT_ACCOUNT_ID = os.environ.get("QUICKSIGHT_ACCOUNT_ID", "")
+CLAWS_LOOKUP_TABLE = os.environ.get("CLAWS_LOOKUP_TABLE", "")
+
+_qs_client = None
+
+
+def _quicksight_client() -> Any:
+    global _qs_client
+    if _qs_client is None:
+        _qs_client = boto3.client("quicksight")
+    return _qs_client
 
 
 def _events_client() -> Any:
@@ -83,6 +98,8 @@ def handler(event: dict, context: Any) -> dict:
         result = _export_to_eventbridge(dest_uri, payload, export_id)
     elif dest_type == "callback":
         result = _export_to_callback(dest_uri, payload, export_id)
+    elif dest_type == "quicksight":
+        result = _export_to_quicksight(dest_uri, payload, run_id, export_id)
     else:
         return error(f"Unsupported destination type: {dest_type}")
 
@@ -96,6 +113,8 @@ def handler(event: dict, context: Any) -> dict:
     }
     if provenance:
         response_body["provenance_uri"] = result.get("provenance_uri")
+    if result.get("dataset_id"):
+        response_body["dataset_id"] = result["dataset_id"]
 
     audit_log("export", principal, body, response_body, request_id=request_id)
 
@@ -201,3 +220,119 @@ def _export_to_callback(uri: str, payload: Any, export_id: str) -> dict:
         return {"status": "complete", "http_status": resp.status_code}
     except Exception as e:
         return {"status": "error", "error": f"Callback export failed: {e}"}
+
+
+def _export_to_quicksight(uri: str, payload: Any, run_id: str, export_id: str) -> dict:
+    """Export results to Quick Sight as a new SPICE dataset.
+
+    URI format: quicksight://dataset-name
+
+    Writes a CSV to S3, creates a QuickSight data source and dataset on top
+    of it, and registers the resulting dataset ID in ClawsLookupTable so the
+    dataset can be resolved via claws:// URIs in downstream compute jobs.
+    """
+    if not QUICKSIGHT_ACCOUNT_ID:
+        return {"status": "error", "error": "QUICKSIGHT_ACCOUNT_ID not configured"}
+
+    dataset_name = uri.replace("quicksight://", "").strip("/") or f"claws-{export_id}"
+    source_id = f"claws-{run_id}"
+
+    # Convert payload to CSV rows
+    rows = payload if isinstance(payload, list) else [payload]
+    if not rows:
+        return {"status": "error", "error": "No results to export to Quick Sight"}
+
+    first = rows[0]
+    columns = list(first.keys()) if isinstance(first, dict) else ["value"]
+
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(row if isinstance(row, dict) else {"value": row})
+
+    # Write CSV and manifest to S3 in the runs bucket
+    csv_key = f"{run_id}/export-{export_id}.csv"
+    manifest_key = f"{run_id}/export-{export_id}-manifest.json"
+    s3_client().put_object(
+        Bucket=RUNS_BUCKET,
+        Key=csv_key,
+        Body=buf.getvalue().encode("utf-8"),
+        ContentType="text/csv",
+    )
+    manifest = {
+        "fileLocations": [{"URIs": [f"s3://{RUNS_BUCKET}/{csv_key}"]}],
+        "globalUploadSettings": {
+            "format": "CSV",
+            "delimiter": ",",
+            "containsHeader": "true",
+        },
+    }
+    s3_client().put_object(
+        Bucket=RUNS_BUCKET,
+        Key=manifest_key,
+        Body=json.dumps(manifest),
+        ContentType="application/json",
+    )
+
+    region = os.environ.get("AWS_REGION", "us-east-1")
+    ds_id = f"claws-ds-{export_id}"
+    dataset_id = f"claws-dset-{export_id}"
+
+    try:
+        _quicksight_client().create_data_source(
+            AwsAccountId=QUICKSIGHT_ACCOUNT_ID,
+            DataSourceId=ds_id,
+            Name=f"claws-{dataset_name}",
+            Type="S3",
+            DataSourceParameters={
+                "S3Parameters": {
+                    "ManifestFileLocation": {
+                        "Bucket": RUNS_BUCKET,
+                        "Key": manifest_key,
+                    }
+                }
+            },
+            Permissions=[],
+        )
+
+        _quicksight_client().create_data_set(
+            AwsAccountId=QUICKSIGHT_ACCOUNT_ID,
+            DataSetId=dataset_id,
+            Name=dataset_name,
+            ImportMode="SPICE",
+            PhysicalTableMap={
+                "claws-table": {
+                    "S3Source": {
+                        "DataSourceArn": (
+                            f"arn:aws:quicksight:{region}:{QUICKSIGHT_ACCOUNT_ID}"
+                            f":datasource/{ds_id}"
+                        ),
+                        "UploadSettings": {
+                            "Format": "CSV",
+                            "StartFromRow": 1,
+                            "ContainsHeader": True,
+                            "Delimiter": ",",
+                        },
+                        "InputColumns": [
+                            {"Name": col, "Type": "STRING"} for col in columns
+                        ],
+                    }
+                }
+            },
+            Permissions=[],
+        )
+
+        # Register in ClawsLookupTable for claws:// URI resolution
+        if CLAWS_LOOKUP_TABLE:
+            dynamodb_resource().Table(CLAWS_LOOKUP_TABLE).put_item(Item={
+                "source_id": source_id,
+                "dataset_id": dataset_id,
+                "dataset_name": dataset_name,
+                "export_id": export_id,
+            })
+
+        return {"status": "complete", "dataset_id": dataset_id, "source_id": source_id}
+
+    except Exception as e:
+        return {"status": "error", "error": f"Quick Sight export failed: {e}"}

@@ -112,6 +112,24 @@ class ClawsToolsStack(cdk.Stack):
             resources=["*"],
         ))
 
+        # Quick Sight export destination (export tool)
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "quicksight:CreateDataSource",
+                "quicksight:CreateDataSet",
+            ],
+            resources=["*"],
+        ))
+
+        # Secrets Manager read for router OAuth credentials (plan + refine)
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["secretsmanager:GetSecretValue"],
+            resources=["*"],
+            conditions={"StringLike": {"secretsmanager:SecretId": "*claws-router*"}},
+        ))
+
         # Shared environment variables
         shared_env = {
             "CLAWS_RUNS_BUCKET": storage_stack.runs_bucket.bucket_name,
@@ -138,6 +156,25 @@ class ClawsToolsStack(cdk.Stack):
                 memory_size=512,
             )
             self.functions[tool_name] = fn
+
+        # Per-tool extra env vars (added after the loop via add_environment)
+
+        # export: Quick Sight destination + ClawsLookupTable
+        qs_account_id = self.node.try_get_context("quicksight_account_id") or ""
+        lookup_table = self.node.try_get_context("claws_lookup_table") or ""
+        if "export" in self.functions:
+            self.functions["export"].add_environment("QUICKSIGHT_ACCOUNT_ID", qs_account_id)
+            self.functions["export"].add_environment("CLAWS_LOOKUP_TABLE", lookup_table)
+
+        # plan + refine: Quick Suite model router
+        router_endpoint = self.node.try_get_context("router_endpoint") or ""
+        router_token_url = self.node.try_get_context("router_token_url") or ""
+        router_secret_arn = self.node.try_get_context("router_secret_arn") or ""
+        for tool_name in ("plan", "refine"):
+            if tool_name in self.functions:
+                self.functions[tool_name].add_environment("ROUTER_ENDPOINT", router_endpoint)
+                self.functions[tool_name].add_environment("ROUTER_TOKEN_URL", router_token_url)
+                self.functions[tool_name].add_environment("ROUTER_SECRET_ARN", router_secret_arn)
 
         # SSM export for qs-discover unified discovery Lambda
         if "discover" in self.functions:

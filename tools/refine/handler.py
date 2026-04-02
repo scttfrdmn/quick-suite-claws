@@ -14,6 +14,7 @@ from tools.shared import (
     GUARDRAIL_VERSION,
     audit_log,
     bedrock_runtime,
+    call_router,
     error,
     load_result,
     new_run_id,
@@ -220,32 +221,41 @@ def _normalize(rows: list[dict]) -> list[dict]:
 def _summarize(rows: list[dict], run_id: str, top_k: int) -> dict:
     """Generate an LLM summary of results with grounding check.
 
-    Uses Bedrock Guardrails contextual grounding to verify the
-    summary is faithful to the source data.
+    Tries the Quick Suite model router first (if ROUTER_ENDPOINT is set),
+    then falls back to direct Bedrock with contextual grounding guardrail.
     """
     data_text = json.dumps(rows[:top_k], indent=2, default=str)
+    prompt = (
+        f"Summarize the following excavation results concisely.\n"
+        f"Focus on key findings, patterns, and notable values.\n\n"
+        f"Data ({len(rows)} rows, showing first {min(len(rows), top_k)}):\n"
+        f"{data_text}\n\n"
+        f"Provide a structured summary with:\n"
+        f"1. Key findings (2-3 bullet points)\n"
+        f"2. Notable patterns or outliers\n"
+        f"3. Data quality observations"
+    )
 
-    invoke_kwargs = {
+    # Router-first: delegate to Quick Suite model router if configured
+    summary_text = call_router("summarize", prompt, max_tokens=1024)
+
+    if summary_text is not None:
+        return {
+            "type": "summary",
+            "text": summary_text,
+            "source_run_id": run_id,
+            "rows_summarized": min(len(rows), top_k),
+        }
+
+    # Fallback: direct Bedrock invocation with guardrail grounding
+    invoke_kwargs: dict = {
         "modelId": MODEL_ID,
         "body": json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "messages": [{
-                "role": "user",
-                "content": f"""Summarize the following excavation results concisely.
-Focus on key findings, patterns, and notable values.
-
-Data ({len(rows)} rows, showing first {min(len(rows), top_k)}):
-{data_text}
-
-Provide a structured summary with:
-1. Key findings (2-3 bullet points)
-2. Notable patterns or outliers
-3. Data quality observations""",
-            }],
+            "messages": [{"role": "user", "content": prompt}],
             "max_tokens": 1024,
         }),
     }
-
     if GUARDRAIL_ID:
         invoke_kwargs["guardrailIdentifier"] = GUARDRAIL_ID
         invoke_kwargs["guardrailVersion"] = GUARDRAIL_VERSION

@@ -44,6 +44,71 @@ def cloudwatch_client() -> Any:
     return _cloudwatch
 
 
+def call_router(router_tool: str, prompt: str, max_tokens: int = 2048) -> str | None:
+    """Invoke the Quick Suite model router for LLM generation.
+
+    Reads ROUTER_ENDPOINT, ROUTER_TOKEN_URL, ROUTER_SECRET_ARN from the
+    environment. The secret must contain JSON with "client_id" and
+    "client_secret" for the Cognito M2M client_credentials flow.
+
+    Returns the generated text content, or None if the router is not
+    configured or encounters any error (callers fall back to direct Bedrock).
+    """
+    import urllib.parse
+    import urllib.request
+
+    endpoint = os.environ.get("ROUTER_ENDPOINT", "")
+    token_url = os.environ.get("ROUTER_TOKEN_URL", "")
+    secret_arn = os.environ.get("ROUTER_SECRET_ARN", "")
+
+    if not endpoint or not token_url or not secret_arn:
+        return None
+
+    try:
+        sm = boto3.client("secretsmanager")
+        secret = json.loads(sm.get_secret_value(SecretId=secret_arn)["SecretString"])
+        client_id = secret["client_id"]
+        client_secret = secret["client_secret"]
+
+        # Obtain OAuth token via client_credentials
+        token_data = urllib.parse.urlencode({
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "scope": "https://quicksuite.internal/router",
+        }).encode()
+        token_req = urllib.request.Request(
+            token_url,
+            data=token_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(token_req, timeout=5) as resp:  # noqa: S310
+            token = json.loads(resp.read())["access_token"]
+
+        # Call the router
+        body = json.dumps({
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "temperature": 0.0,
+        }).encode()
+        router_req = urllib.request.Request(
+            f"{endpoint.rstrip('/')}/tools/{router_tool}",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {token}",
+            },
+        )
+        with urllib.request.urlopen(router_req, timeout=30) as resp:  # noqa: S310
+            result = json.loads(resp.read())
+
+        return result.get("content") or None
+
+    except Exception as exc:
+        print(json.dumps({"level": "warn", "msg": "call_router failed", "error": str(exc)}))
+        return None
+
+
 # --- Configuration ---
 
 RUNS_BUCKET = os.environ.get("CLAWS_RUNS_BUCKET", "claws-runs")

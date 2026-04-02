@@ -18,6 +18,7 @@ from tools.shared import (
     GUARDRAIL_VERSION,
     audit_log,
     bedrock_runtime,
+    call_router,
     error,
     get_cached_schema,
     new_plan_id,
@@ -57,48 +58,50 @@ def handler(event: dict, context: Any) -> dict:
     # Build the prompt
     prompt = _build_plan_prompt(objective, source_id, schema, constraints, query_type)
 
-    # Call Bedrock with guardrail attached
-    invoke_kwargs = {
-        "modelId": MODEL_ID,
-        "body": json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 2048,
-        }),
-    }
-
-    # Attach guardrail if configured
+    # Router-first: delegate to Quick Suite model router if configured.
+    # Falls back to direct Bedrock when ROUTER_ENDPOINT is not set or on any error.
     guardrail_trace = None
-    if GUARDRAIL_ID:
-        invoke_kwargs["guardrailIdentifier"] = GUARDRAIL_ID
-        invoke_kwargs["guardrailVersion"] = GUARDRAIL_VERSION
+    model_text = call_router("generate", prompt, max_tokens=2048)
 
-    try:
-        response = bedrock_runtime().invoke_model(**invoke_kwargs)
-        result = json.loads(response["body"].read())
-    except Exception as e:
-        audit_log(
-            "plan", principal, body, {"status": "error", "error": str(e)}, request_id=request_id
-        )
-        return error(f"Model invocation failed: {e}", status_code=502)
+    if model_text is None:
+        # Direct Bedrock invocation with attached guardrail
+        invoke_kwargs: dict = {
+            "modelId": MODEL_ID,
+            "body": json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2048,
+            }),
+        }
+        if GUARDRAIL_ID:
+            invoke_kwargs["guardrailIdentifier"] = GUARDRAIL_ID
+            invoke_kwargs["guardrailVersion"] = GUARDRAIL_VERSION
 
-    # Check if guardrail intervened
-    if result.get("amazon-bedrock-guardrailAction") == "INTERVENED":
-        guardrail_trace = result.get("amazon-bedrock-trace", {}).get("guardrail", {})
-        audit_log("plan", principal, body, {
-            "status": "blocked",
-            "guardrail_trace": guardrail_trace,
-        }, request_id=request_id)
-        return success({
-            "status": "blocked",
-            "reason": "Content policy violation on objective or generated query",
-        })
+        try:
+            response = bedrock_runtime().invoke_model(**invoke_kwargs)
+            result = json.loads(response["body"].read())
+        except Exception as e:
+            audit_log(
+                "plan", principal, body, {"status": "error", "error": str(e)},
+                request_id=request_id,
+            )
+            return error(f"Model invocation failed: {e}", status_code=502)
 
-    # Parse the generated query from the model response
-    model_text = ""
-    for block in result.get("content", []):
-        if block.get("type") == "text":
-            model_text += block["text"]
+        if result.get("amazon-bedrock-guardrailAction") == "INTERVENED":
+            guardrail_trace = result.get("amazon-bedrock-trace", {}).get("guardrail", {})
+            audit_log("plan", principal, body, {
+                "status": "blocked",
+                "guardrail_trace": guardrail_trace,
+            }, request_id=request_id)
+            return success({
+                "status": "blocked",
+                "reason": "Content policy violation on objective or generated query",
+            })
+
+        model_text = ""
+        for block in result.get("content", []):
+            if block.get("type") == "text":
+                model_text += block["text"]
 
     parsed = _parse_model_response(model_text)
     if parsed is None:

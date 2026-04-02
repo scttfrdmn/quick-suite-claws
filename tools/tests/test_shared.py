@@ -1,6 +1,7 @@
-"""Tests for tools/shared.py — CloudWatch metrics emission."""
+"""Tests for tools/shared.py — CloudWatch metrics emission and call_router."""
 
-from unittest.mock import MagicMock
+import json
+from unittest.mock import MagicMock, patch
 
 import tools.shared as _shared
 
@@ -84,6 +85,73 @@ class TestAuditLogMetrics:
         _shared.audit_log(
             "discover", "user1", {}, {"status": "complete"}, request_id="req-abc123"
         )
-        import json
         record = json.loads(capsys.readouterr().out.strip())
         assert record["request_id"] == "req-abc123"
+
+
+class TestCallRouter:
+    def _fake_urlopen(self, responses):
+        """Build a context-manager mock that yields successive byte responses."""
+        import io as _io
+
+        class _CM:
+            def __init__(self, resp_bytes):
+                self._data = resp_bytes
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+            def read(self):
+                return self._data
+
+        calls = iter(responses)
+
+        def _open(req, timeout=None):
+            return _CM(next(calls))
+
+        return _open
+
+    def test_returns_none_when_not_configured(self, monkeypatch):
+        """call_router returns None when env vars are absent."""
+        monkeypatch.delenv("ROUTER_ENDPOINT", raising=False)
+        monkeypatch.delenv("ROUTER_TOKEN_URL", raising=False)
+        monkeypatch.delenv("ROUTER_SECRET_ARN", raising=False)
+        assert _shared.call_router("generate", "hello") is None
+
+    def test_returns_content_on_success(self, monkeypatch):
+        monkeypatch.setenv("ROUTER_ENDPOINT", "https://router.example")
+        monkeypatch.setenv("ROUTER_TOKEN_URL", "https://cognito.example/token")
+        monkeypatch.setenv("ROUTER_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:claws-router")
+
+        fake_sm = MagicMock()
+        fake_sm.get_secret_value.return_value = {
+            "SecretString": json.dumps({"client_id": "cid", "client_secret": "csec"})
+        }
+        monkeypatch.setattr(_shared, "_s3", None)  # ensure no stale state
+
+        token_resp = json.dumps({"access_token": "tok123"}).encode()
+        router_resp = json.dumps({"content": "SELECT 1"}).encode()
+
+        with patch("tools.shared.boto3") as mock_boto3, \
+             patch("urllib.request.urlopen", side_effect=self._fake_urlopen([token_resp, router_resp])):
+            mock_boto3.client.return_value = fake_sm
+            result = _shared.call_router("generate", "write a query", max_tokens=512)
+
+        assert result == "SELECT 1"
+
+    def test_returns_none_on_sm_error(self, monkeypatch, capsys):
+        monkeypatch.setenv("ROUTER_ENDPOINT", "https://router.example")
+        monkeypatch.setenv("ROUTER_TOKEN_URL", "https://cognito.example/token")
+        monkeypatch.setenv("ROUTER_SECRET_ARN", "arn:aws:secretsmanager:us-east-1:123:secret:claws-router")
+
+        with patch("tools.shared.boto3") as mock_boto3:
+            mock_boto3.client.return_value = MagicMock(
+                get_secret_value=MagicMock(side_effect=Exception("AccessDenied"))
+            )
+            result = _shared.call_router("generate", "hello")
+
+        assert result is None
+        assert "call_router failed" in capsys.readouterr().out
