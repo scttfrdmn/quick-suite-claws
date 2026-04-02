@@ -3,6 +3,10 @@
 Not an AgentCore tool. Receives {"watch_id": "watch-..."} from the scheduler,
 executes the locked plan, evaluates the optional condition, and fires the
 notification target if triggered. No LLM is invoked at execution time.
+
+Feed watches (type="feed") accumulate results across runs by calling refine with
+mode="merge" after each execution. The merged dataset URI is persisted in
+feed_result_uri on the watch spec and passed as result_s3_uri to the next run.
 """
 
 import json
@@ -82,34 +86,147 @@ def handler(event: dict, context: Any) -> dict:
         source_id=plan["source_id"],
     )
 
-    triggered = _evaluate_condition(watch.get("condition"), rows)
+    # Feed watches: merge new results into the accumulated dataset
+    watch_type = watch.get("type", "alert")
+    feed_result_uri = None
+    if watch_type == "feed":
+        feed_result_uri = _run_feed_merge(watch, watch_id, run_id, rows)
+
+    # Drift condition: compare new results against previous run_id result
+    diff_summary = None
+    condition = watch.get("condition")
+    if condition and condition.get("type") == "drift":
+        triggered, diff_summary = _evaluate_drift_condition(condition, run_id, watch)
+    else:
+        triggered = _evaluate_condition(condition, rows)
     triggered_at = now if triggered else watch.get("last_triggered_at")
 
     if triggered and watch.get("notification_target"):
         _fire_notification(watch["notification_target"], run_id, rows, watch_id)
 
-    update_watch(watch_id, {
+    watch_updates: dict = {
         "last_run_id": run_id,
         "last_run_at": now,
         "last_triggered_at": triggered_at,
         "consecutive_errors": 0,
         "status": "active",
-    })
+    }
+    if feed_result_uri:
+        watch_updates["feed_result_uri"] = feed_result_uri
+    update_watch(watch_id, watch_updates)
 
-    audit_log(
-        "watch-runner",
-        "watch-scheduler",
-        {"watch_id": watch_id},
-        {
-            "status": "complete",
-            "watch_id": watch_id,
-            "run_id": run_id,
-            "rows_returned": len(rows),
-            "triggered": triggered,
-        },
+    audit_out: dict = {
+        "status": "complete",
+        "watch_id": watch_id,
+        "run_id": run_id,
+        "rows_returned": len(rows),
+        "triggered": triggered,
+    }
+    if diff_summary is not None:
+        audit_out["diff_summary"] = diff_summary
+
+    audit_log("watch-runner", "watch-scheduler", {"watch_id": watch_id}, audit_out)
+
+    result_out: dict = {
+        "status": "complete",
+        "watch_id": watch_id,
+        "run_id": run_id,
+        "triggered": triggered,
+    }
+    if diff_summary is not None:
+        result_out["diff_summary"] = diff_summary
+    return result_out
+
+
+def _run_feed_merge(watch: dict, watch_id: str, run_id: str, rows: list[dict]) -> str | None:
+    """Merge new excavation rows into the feed's accumulated dataset.
+
+    On the first run (no feed_result_uri yet), stores the new rows as the
+    initial feed result and returns the URI. On subsequent runs, calls
+    refine with mode="merge" to accumulate without duplicates.
+
+    Returns the URI of the (updated) feed result, or None on error.
+    """
+    from tools.refine.handler import handler as refine_handler  # noqa: PLC0415
+
+    dedup_key = watch.get("feed_dedup_key", "")
+    existing_uri = watch.get("feed_result_uri")
+
+    if not existing_uri:
+        # First run — store new rows as the initial feed dataset and record URI
+        import boto3 as _boto3  # noqa: PLC0415
+        bucket = RUNS_BUCKET
+        key = f"feeds/{watch_id}/feed.json"
+        import json as _json  # noqa: PLC0415
+        _boto3.client("s3").put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=_json.dumps(rows, default=str),
+            ContentType="application/json",
+        )
+        return f"s3://{bucket}/{key}"
+
+    # Subsequent runs — merge via refine handler
+    merge_event = {
+        "mode": "merge",
+        "run_id": run_id,
+        "result_s3_uri": existing_uri,
+        "dedup_key": dedup_key,
+        "output_s3_uri": existing_uri,  # write back to same URI (overwrite feed)
+    }
+    try:
+        result = refine_handler(merge_event, None)
+        if result.get("statusCode") == 200:
+            import json as _json  # noqa: PLC0415
+            body = _json.loads(result["body"])
+            return body.get("output_s3_uri", existing_uri)
+    except Exception as exc:
+        print(_json.dumps({"level": "warn", "msg": "feed merge failed",
+                           "watch_id": watch_id, "error": str(exc)}))
+    return existing_uri  # Return existing URI even on error — don't lose it
+
+
+def _evaluate_drift_condition(
+    condition: dict, run_id: str, watch: dict
+) -> tuple[bool, dict | None]:
+    """Evaluate a drift condition by comparing the new result against the previous run.
+
+    Returns (triggered: bool, diff_summary: dict | None).
+    - First run (no last_run_id): always returns (False, None) — no baseline yet.
+    - Subsequent runs: calls diff_results; fires if change% > threshold_pct.
+    """
+    from tools.shared import diff_results  # noqa: PLC0415
+
+    prev_run_id = watch.get("last_run_id")
+    if not prev_run_id:
+        # No previous run to compare against — store without firing
+        return False, None
+
+    key_column = condition.get("key_column", "id")
+    threshold_pct = float(condition.get("threshold_pct", 10.0))
+
+    # Construct S3 URIs for previous and current result
+    uri_prev = f"s3://{RUNS_BUCKET}/{prev_run_id}/result.json"
+    uri_curr = f"s3://{RUNS_BUCKET}/{run_id}/result.json"
+
+    try:
+        diff = diff_results(uri_prev, uri_curr, key_column)
+    except Exception as exc:
+        print(json.dumps({"level": "warn", "msg": "drift diff failed",
+                          "watch_id": watch.get("watch_id", ""), "error": str(exc)}))
+        return False, None
+
+    total = (
+        diff["added_count"] + diff["removed_count"] +
+        diff["changed_count"] + diff["unchanged_count"]
     )
+    if total == 0:
+        return False, diff
 
-    return {"status": "complete", "watch_id": watch_id, "run_id": run_id, "triggered": triggered}
+    change_count = diff["added_count"] + diff["removed_count"] + diff["changed_count"]
+    change_pct = (change_count / total) * 100.0
+    triggered = change_pct > threshold_pct
+    return triggered, diff
 
 
 def _evaluate_condition(condition: dict | None, rows: list[dict]) -> bool:

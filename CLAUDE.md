@@ -191,11 +191,11 @@ Released:
 - **v0.5.0** — MCP extensibility (issues #22–#27) ✓
 - **v0.6.0** — Capstone integration (issues #33–#34) ✓
 - **v0.7.0** — Scheduled watches: `claws.watch` + `claws.watches` tools, watch runner Lambda, EventBridge Scheduler, `ClawsSchedulerStack`, DynamoDB PartiQL executor (issues #35–#40, #49) ✓
+- **v0.8.0** — Feed materialization: `merge` refine operation, feed watch type, export append/overwrite mode (issues #41–#44) ✓
+- **v0.9.0** — Drift detection: `diff_results` utility in `shared.py`, drift condition type in watch runner, diff summary passthrough in export provenance (issues #45–#48) ✓
 - **v0.10.0** — Collaboration: `team_id` on plans + watches, `claws.team_plans` tool, `claws.share_plan` tool, catalog-aware `discover` querying quick-suite-data source registry (issues #51–#55) ✓
 
 Upcoming:
-- **v0.8.0** — Feed materialization: `merge` refine operation, feed watch type, export append/overwrite mode (issues #41–#44)
-- **v0.9.0** — Drift detection: `diff_results` utility, drift condition type, diff summary in export (issues #45–#48)
 - **v0.11.0** — Compliance: IRB approval workflow (`pending_approval` plan status + `approve_plan` Lambda), FERPA Guardrail preset, Cedar policy templates, compliance audit export Lambda (issues #56–#60)
 
 ## Design docs

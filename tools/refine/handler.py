@@ -1,8 +1,10 @@
 """clAWS refine tool — post-process excavation results.
 
-Operations: dedupe, rank, filter, summarize, normalize.
+Operations: dedupe, rank, filter, summarize, normalize, merge.
 The summarize operation uses Bedrock with guardrail for
 contextual grounding checks.
+The merge operation combines an existing dataset (result_s3_uri) with new
+excavation results, deduplicating by a configurable key field.
 """
 
 import json
@@ -18,6 +20,7 @@ from tools.shared import (
     error,
     load_result,
     new_run_id,
+    s3_client,
     scan_payload,
     store_result,
     success,
@@ -25,7 +28,7 @@ from tools.shared import (
 
 MODEL_ID = os.environ.get("CLAWS_REFINE_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0")
 
-ALLOWED_OPERATIONS = {"dedupe", "rank", "rank_by_n", "filter", "summarize", "normalize"}
+ALLOWED_OPERATIONS = {"dedupe", "rank", "rank_by_n", "filter", "summarize", "normalize", "merge"}
 
 
 def handler(event: dict, context: Any) -> dict:
@@ -34,8 +37,13 @@ def handler(event: dict, context: Any) -> dict:
     run_id = body.get("run_id", "")
     operations = body.get("operations", [])
     top_k = body.get("top_k", 25)
+    mode = body.get("mode", "")
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
     request_id = event.get("requestContext", {}).get("requestId", "")
+
+    # Handle merge mode separately — it takes result_s3_uri + new run_id
+    if mode == "merge":
+        return _handle_merge(body, principal, request_id)
 
     if not run_id:
         return error("run_id is required")
@@ -112,6 +120,119 @@ def handler(event: dict, context: Any) -> dict:
         "run_id": refined_run_id,
         "refined_uri": result_uri,
         "manifest": manifest,
+    })
+
+
+def _load_s3_uri(uri: str) -> list[dict]:
+    """Load an NDJSON or JSON array from an arbitrary S3 URI."""
+    parts = uri.replace("s3://", "").split("/", 1)
+    bucket = parts[0]
+    key = parts[1] if len(parts) > 1 else ""
+    obj = s3_client().get_object(Bucket=bucket, Key=key)
+    raw = obj["Body"].read().decode("utf-8").strip()
+    # Try JSON array first, then NDJSON
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            return data
+        return [data]
+    except json.JSONDecodeError:
+        return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+
+def _handle_merge(body: dict, principal: str, request_id: str) -> dict:
+    """Merge mode: load existing dataset from result_s3_uri, merge with new run results.
+
+    Deduplicates by dedup_key field. Writes merged result back to S3 at
+    output_s3_uri (or stores as a new run result).
+
+    Returns: merged_count, added_count, duplicate_count, output_s3_uri.
+    """
+    run_id = body.get("run_id", "")
+    result_s3_uri = body.get("result_s3_uri", "")
+    dedup_key = body.get("dedup_key", "")
+    output_s3_uri = body.get("output_s3_uri", "")
+
+    if not run_id:
+        return error("run_id is required for merge mode")
+    if not result_s3_uri:
+        return error("result_s3_uri is required for merge mode")
+    if not dedup_key:
+        return error("dedup_key is required for merge mode")
+
+    # Load existing dataset
+    try:
+        existing_rows: list[dict] = _load_s3_uri(result_s3_uri)
+    except Exception as e:
+        return error(f"Failed to load result_s3_uri {result_s3_uri}: {e}", status_code=404)
+
+    # Load new excavation results
+    try:
+        new_rows: list[dict] = load_result(run_id)
+    except Exception as e:
+        return error(f"Failed to load results for {run_id}: {e}", status_code=404)
+
+    # Build key set from existing rows
+    existing_keys: set = {
+        str(row.get(dedup_key)) for row in existing_rows if dedup_key in row
+    }
+
+    added_count = 0
+    duplicate_count = 0
+    rows_to_add: list[dict] = []
+    for row in new_rows:
+        key_val = str(row.get(dedup_key, "")) if dedup_key in row else None
+        if key_val is None or key_val not in existing_keys:
+            rows_to_add.append(row)
+            if key_val is not None:
+                existing_keys.add(key_val)
+            added_count += 1
+        else:
+            duplicate_count += 1
+
+    merged_rows = existing_rows + rows_to_add
+    merged_count = len(merged_rows)
+
+    # Write merged result
+    if output_s3_uri:
+        # Write to the provided S3 URI
+        parts = output_s3_uri.replace("s3://", "").split("/", 1)
+        bucket = parts[0]
+        key = parts[1] if len(parts) > 1 else f"merged-{run_id}.json"
+        s3_client().put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=json.dumps(merged_rows, default=str),
+            ContentType="application/json",
+        )
+        out_uri = output_s3_uri
+    else:
+        # Store as a new run result; reuse result_s3_uri path
+        parts = result_s3_uri.replace("s3://", "").split("/", 1)
+        bucket = parts[0]
+        key = parts[1] if len(parts) > 1 else f"merged-{run_id}.json"
+        s3_client().put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=json.dumps(merged_rows, default=str),
+            ContentType="application/json",
+        )
+        out_uri = result_s3_uri
+
+    audit_log("refine", principal, body, {
+        "mode": "merge",
+        "merged_count": merged_count,
+        "added_count": added_count,
+        "duplicate_count": duplicate_count,
+        "output_s3_uri": out_uri,
+    }, request_id=request_id)
+
+    return success({
+        "mode": "merge",
+        "merged_count": merged_count,
+        "added_count": added_count,
+        "duplicate_count": duplicate_count,
+        "output_s3_uri": out_uri,
     })
 
 

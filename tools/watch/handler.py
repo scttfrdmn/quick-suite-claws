@@ -133,11 +133,21 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
     watch_id = new_watch_id()
     now = datetime.now(UTC).isoformat()
 
+    # Validate watch type
+    watch_type = body.get("type", "alert")
+    if watch_type not in ("alert", "feed"):
+        return error(f"type must be 'alert' or 'feed', got: {watch_type!r}")
+
+    # feed watches require a dedup_key
+    feed_dedup_key = body.get("feed_dedup_key", "")
+    if watch_type == "feed" and not feed_dedup_key:
+        return error("feed_dedup_key is required for feed watches")
+
     spec = {
         "plan_id": plan_id,
         "source_id": plan.get("source_id", ""),   # denormalized for watches listing
         "schedule": schedule,
-        "type": "alert",
+        "type": watch_type,
         "status": "active",
         "notification_target": notification_target,
         "ttl": int(time.time()) + ttl_days * 86400,
@@ -149,6 +159,9 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
     }
     if condition:
         spec["condition"] = condition
+    if watch_type == "feed":
+        spec["feed_dedup_key"] = feed_dedup_key
+        spec["feed_result_uri"] = None  # filled by runner after first run
     # Denormalize team_id from plan at watch creation so watches can be filtered by team
     if plan.get("team_id"):
         spec["team_id"] = plan["team_id"]

@@ -55,6 +55,8 @@ def handler(event: dict, context: Any) -> dict:
     run_id = body.get("run_id", "")
     destination = body.get("destination", {})
     include_provenance = body.get("include_provenance", True)
+    export_mode = body.get("mode", "overwrite")  # "overwrite" | "append"
+    diff_summary = body.get("diff_summary")      # optional drift diff_results dict
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
     request_id = event.get("requestContext", {}).get("requestId", "")
 
@@ -86,14 +88,14 @@ def handler(event: dict, context: Any) -> dict:
     # Build provenance if requested
     provenance = None
     if include_provenance:
-        provenance = _build_provenance(run_id, principal, destination)
+        provenance = _build_provenance(run_id, principal, destination, export_mode, diff_summary)
 
     # Export to destination
     dest_type = destination["type"]
     dest_uri = destination["uri"]
 
     if dest_type == "s3":
-        result = _export_to_s3(dest_uri, payload, provenance, export_id)
+        result = _export_to_s3(dest_uri, payload, provenance, export_id, export_mode)
     elif dest_type == "eventbridge":
         result = _export_to_eventbridge(dest_uri, payload, export_id)
     elif dest_type == "callback":
@@ -109,7 +111,8 @@ def handler(event: dict, context: Any) -> dict:
     response_body = {
         "export_id": export_id,
         "status": "complete",
-        "destination_uri": dest_uri,
+        "destination_uri": result.get("actual_uri", dest_uri),
+        "export_mode": export_mode,
     }
     if provenance:
         response_body["provenance_uri"] = result.get("provenance_uri")
@@ -121,27 +124,56 @@ def handler(event: dict, context: Any) -> dict:
     return success(response_body)
 
 
-def _build_provenance(run_id: str, principal: str, destination: dict) -> dict:
+def _build_provenance(
+    run_id: str,
+    principal: str,
+    destination: dict,
+    export_mode: str = "overwrite",
+    diff_summary: dict | None = None,
+) -> dict:
     """Build a provenance record tracing the full excavation chain."""
-    return {
+    prov: dict = {
         "export_timestamp": datetime.now(UTC).isoformat(),
         "principal": principal,
         "run_id": run_id,
         "destination": destination,
+        "export_mode": export_mode,
         "chain": {
             "note": "Full provenance chain: plan → query → raw result → refinement → export",
             "run_id": run_id,
         },
     }
+    if diff_summary is not None:
+        prov["diff_summary"] = diff_summary
+    return prov
 
 
-def _export_to_s3(uri: str, payload: Any, provenance: dict | None, export_id: str) -> dict:
-    """Export results to S3."""
+def _export_to_s3(
+    uri: str,
+    payload: Any,
+    provenance: dict | None,
+    export_id: str,
+    export_mode: str = "overwrite",
+) -> dict:
+    """Export results to S3.
+
+    mode="overwrite" (default): writes to the specified key, replacing any existing object.
+    mode="append": writes to a new timestamped key under the same prefix, leaving existing
+                   objects intact.
+    """
     try:
         # Parse s3://bucket/key
         parts = uri.replace("s3://", "").split("/", 1)
         bucket = parts[0]
-        key = parts[1] if len(parts) > 1 else f"claws-export-{export_id}.json"
+        base_key = parts[1] if len(parts) > 1 else f"claws-export-{export_id}.json"
+
+        if export_mode == "append":
+            # Derive a timestamped variant: base becomes a prefix (strip extension)
+            ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+            stem = base_key.rsplit(".", 1)[0] if "." in base_key else base_key
+            key = f"{stem}-{ts}-{export_id}.json"
+        else:
+            key = base_key
 
         # Write results
         s3_client().put_object(
@@ -149,10 +181,10 @@ def _export_to_s3(uri: str, payload: Any, provenance: dict | None, export_id: st
             Key=key,
             Body=json.dumps(payload, default=str),
             ContentType="application/json",
-            Metadata={"claws-export-id": export_id},
+            Metadata={"claws-export-id": export_id, "claws-export-mode": export_mode},
         )
 
-        result = {"status": "complete"}
+        result: dict = {"status": "complete", "actual_uri": f"s3://{bucket}/{key}"}
 
         # Write provenance alongside results
         if provenance:

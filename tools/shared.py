@@ -463,6 +463,74 @@ def scan_payload(payload: Any, max_chunk_chars: int = 25000) -> dict:
     return {"status": "clean", "payload": payload}
 
 
+# --- Drift detection ---
+
+def diff_results(uri_a: str, uri_b: str, key_column: str) -> dict:
+    """Compare two S3 NDJSON/JSON result sets by key_column.
+
+    Loads both URIs, computes added/removed/changed row sets, and returns a
+    summary dict with counts and sample rows (up to 5 per category).
+
+    Returns:
+        {
+            "added":   [...up to 5 sample rows present in B but not A...],
+            "removed": [...up to 5 sample rows present in A but not B...],
+            "changed": [...up to 5 sample rows present in both but with different values...],
+            "added_count": N,
+            "removed_count": N,
+            "changed_count": N,
+            "unchanged_count": N,
+        }
+    """
+
+    def _load(uri: str) -> list[dict]:
+        parts = uri.replace("s3://", "").split("/", 1)
+        bucket = parts[0]
+        key = parts[1] if len(parts) > 1 else ""
+        obj = s3_client().get_object(Bucket=bucket, Key=key)
+        raw = obj["Body"].read().decode("utf-8").strip()
+        try:
+            data = json.loads(raw)
+            return data if isinstance(data, list) else [data]
+        except json.JSONDecodeError:
+            return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+    rows_a = _load(uri_a)
+    rows_b = _load(uri_b)
+
+    # Index by key_column
+    index_a: dict = {str(row.get(key_column, i)): row for i, row in enumerate(rows_a)}
+    index_b: dict = {str(row.get(key_column, i)): row for i, row in enumerate(rows_b)}
+
+    keys_a = set(index_a)
+    keys_b = set(index_b)
+
+    removed_keys = keys_a - keys_b
+    added_keys = keys_b - keys_a
+    common_keys = keys_a & keys_b
+
+    changed: list[dict] = []
+    unchanged_count = 0
+    for k in common_keys:
+        if json.dumps(index_a[k], sort_keys=True, default=str) != json.dumps(index_b[k], sort_keys=True, default=str):
+            changed.append(index_b[k])
+        else:
+            unchanged_count += 1
+
+    added_rows = [index_b[k] for k in sorted(added_keys)]
+    removed_rows = [index_a[k] for k in sorted(removed_keys)]
+
+    return {
+        "added": added_rows[:5],
+        "removed": removed_rows[:5],
+        "changed": changed[:5],
+        "added_count": len(added_rows),
+        "removed_count": len(removed_rows),
+        "changed_count": len(changed),
+        "unchanged_count": unchanged_count,
+    }
+
+
 # --- Lambda response helpers ---
 
 def success(body: dict, status_code: int = 200) -> dict:
