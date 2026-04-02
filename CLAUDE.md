@@ -35,14 +35,18 @@ Cedar policies gate the concrete query, not the intent.
 
 ```
 discover → probe → plan → excavate → refine → export
+                                               ↓
+                                        watch / watches  (v0.7+, persistence)
 ```
 
 - `discover` — find sources in approved domains (Glue catalog search)
 - `probe` — inspect schema, samples, cost estimates
 - `plan` — translate free-text objective → concrete query (LLM + Guardrails)
-- `excavate` — execute concrete query from plan (Athena/OpenSearch/S3 Select)
+- `excavate` — execute concrete query from plan (Athena/OpenSearch/S3 Select/MCP)
 - `refine` — dedupe, rank, summarize results
 - `export` — materialize to S3/EventBridge with provenance
+- `watch` *(v0.7)* — create/update/delete a scheduled watch on a locked plan
+- `watches` *(v0.7)* — list active watches and last-run status
 
 ## Safety layers
 
@@ -78,14 +82,32 @@ claws/
 │   │   └── validators/           # sql_validator.py, cost_estimator.py
 │   ├── excavate/                 # Query execution
 │   │   ├── handler.py            # Plan-linked execution + result scanning
-│   │   └── executors/            # athena.py (done), opensearch.py, s3_select.py (stubs)
+│   │   └── executors/            # athena.py, opensearch.py, s3_select.py, mcp.py
+│   ├── mcp/                      # MCP registry + async client bridge
+│   │   ├── registry.py           # Server config from env/S3
+│   │   └── client.py             # asyncio.run() bridge for Lambda
 │   ├── refine/handler.py         # Dedupe, rank, summarize with grounding
-│   └── export/handler.py         # S3 export with provenance + final scan
+│   ├── export/handler.py         # S3/EventBridge export with provenance
+│   ├── watch/                    # (v0.7) Scheduled watch CRUD + runner
+│   ├── watches/                  # (v0.7) List/status tool
+│   └── tests/
+│       ├── test_pipeline.py      # E2E integration tests
+│       ├── test_shared.py
+│       └── live/                 # Manual live-AWS tests (pytest -m live)
 ├── infra/cdk/                    # Python CDK stacks
 │   ├── app.py
 │   └── stacks/                   # storage, tools, gateway, guardrails, policy
-├── docs/                         # architecture, safety-model, quick-suite
+│                                 # scheduler_stack.py (v0.7)
+├── docs/
+│   ├── architecture.md
+│   ├── safety-model.md
+│   ├── getting-started.md
+│   ├── user-guide.md
+│   ├── mcp-integration.md
+│   ├── capstone-deployment.md
+│   └── quick-suite-integration.md
 ├── examples/                     # genomics, log-analysis, document-mining
+├── CONTRIBUTING.md
 └── pyproject.toml                # Project config, deps, pytest, ruff, mypy
 ```
 
@@ -105,34 +127,40 @@ claws/
 ## Testing
 
 ```bash
-# Run all tests (pure logic, no AWS deps needed)
-pytest tools/ -v
+# Run all tests — 155 passing, no AWS credentials required
+uv run pytest tools/ -v
 
-# Current test coverage
-# tools/plan/tests/test_sql_validator.py — 13 tests (mutation detection, multi-statement, etc.)
-# tools/plan/tests/test_cost_estimator.py — 4 tests (Athena pricing, partition pruning)
+# Lint and format
+uv run ruff check tools/
+uv run ruff format tools/
+
+# Type check
+uv run mypy tools/
 ```
 
-Tests use pytest. For tests that need AWS services, use moto for mocking
-(listed in dev dependencies). The sql_validator and cost_estimator tests
-are pure logic and run without any mocking.
+Three test tiers:
+
+1. **Pure unit** — `sql_validator`, `cost_estimator`, `test_shared`: no AWS, no fixtures
+2. **Substrate integration** — all handler and executor tests: real S3/DynamoDB/Glue/Athena
+   via the `substrate` fixture (pytest-substrate). OpenSearch, Bedrock, EventBridge, and MCP
+   are mocked with `MagicMock` (substrate OpenSearch support tracked in
+   [scttfrdmn/substrate#253](https://github.com/scttfrdmn/substrate/issues/253))
+3. **Live AWS** — `tools/tests/live/`: manual only, requires `CLAWS_TEST_*` env vars,
+   run with `uv run pytest tools/tests/live/ -m live`
+
+Tests never use `moto`. All AWS mocking goes through substrate or `MagicMock`.
 
 ## Dependencies
 
 ```bash
-pip install -e ".[dev]"     # Dev: pytest, ruff, mypy, moto
-pip install -e ".[cdk]"     # CDK: aws-cdk-lib, constructs
+uv sync --extra dev          # Dev: pytest, ruff, mypy, pytest-substrate
+uv sync --extra cdk          # CDK: aws-cdk-lib, constructs
+uv sync --extra dev --extra cdk   # Both
 ```
 
-Runtime dependency is just `boto3`.
-
-## Linting and formatting
-
-```bash
-ruff check tools/           # Lint
-ruff format tools/           # Format
-mypy tools/                  # Type check
-```
+Runtime dependencies: `boto3`, `mcp>=1.0`, `opensearch-py`, `requests-aws4auth`.
+`pytest-substrate` is a local file reference (`file:///Users/scttfrdmn/src/substrate/python`);
+requires substrate server >=0.45.3.
 
 Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 
@@ -143,22 +171,29 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - Bedrock Guardrail configs (base + genomics + financial tenant overlays)
 - All 6 tool handlers with real implementation logic
 - All 4 executors: Athena, OpenSearch (with aggregation flattening), S3 Select, MCP
+- MCP registry (inline JSON or S3 URI config) + asyncio.run() client bridge
 - SQL validator with mutation detection, multi-statement blocking
 - Cost estimator with Athena pricing model, partition pruning heuristics
 - Guardrail scanning (ApplyGuardrail API integration in shared.py)
 - Plan-to-execution linkage (plan_id validation in excavate)
 - CDK stacks for all infrastructure, including Capstone mode (shared Gateway)
-- 155 passing tests
+- Live AWS test tier (`tools/tests/live/`) for manual pre-release validation
+- 155 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
 Work is tracked in GitHub — see milestones and issues at
 https://github.com/scttfrdmn/claws/milestones
 
-Current milestones:
-- **v0.4.1** — OpenSearch aggregation flattening + executor tests
-- **v0.5.0** — MCP extensibility (issues #22–#27)
-- **v0.6.0** — Capstone integration (issues #33–#34) ✓ complete
+Released:
+- **v0.4.1** — OpenSearch aggregation flattening + executor tests ✓
+- **v0.5.0** — MCP extensibility (issues #22–#27) ✓
+- **v0.6.0** — Capstone integration (issues #33–#34) ✓
+
+Upcoming:
+- **v0.7.0** — Scheduled watches: `claws.watch` + `claws.watches` tools, watch runner Lambda, EventBridge Scheduler, `ClawsSchedulerStack` (issues #35–#40)
+- **v0.8.0** — Feed materialization: `merge` refine operation, feed watch type, export append/overwrite mode (issues #41–#44)
+- **v0.9.0** — Drift detection: `diff_results` utility, drift condition type, diff summary in export (issues #45–#48)
 
 ## Design docs
 
@@ -183,3 +218,7 @@ conversation history where this project was created.
    connects through the same Gateway as any other client.
 6. **ApplyGuardrail for data paths** — result scanning uses the standalone API,
    not model guardrails. This scans data without LLM involvement.
+7. **Watches lock the plan at creation** — the watch runner executes the stored
+   plan verbatim on every scheduled run. No LLM is invoked at execution time.
+   This is strictly safer than on-demand: the query is immutable and auditable
+   for the lifetime of the watch.

@@ -133,9 +133,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for branch conventions, commit style, and
 |-----|---------------|
 | [docs/getting-started.md](docs/getting-started.md) | Deploy and run your first excavation |
 | [docs/user-guide.md](docs/user-guide.md) | Tool reference, Cedar authoring, guardrail customization |
-| [docs/architecture.md](docs/architecture.md) | Component map, CDK stacks, storage systems |
+| [docs/architecture.md](docs/architecture.md) | Component map, CDK stacks, storage systems, executors |
 | [docs/safety-model.md](docs/safety-model.md) | Cedar vs Guardrails — the threat model |
-| [docs/quick-suite-integration.md](docs/quick-suite-integration.md) | Optional operator surface |
+| [docs/mcp-integration.md](docs/mcp-integration.md) | MCP server registry, transports, pipeline walkthrough |
+| [docs/capstone-deployment.md](docs/capstone-deployment.md) | Standalone vs shared-Gateway (Capstone) deployment |
+| [docs/quick-suite-integration.md](docs/quick-suite-integration.md) | Quick Suite operator surface |
 
 ## Examples
 
