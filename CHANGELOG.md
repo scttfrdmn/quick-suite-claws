@@ -7,6 +7,39 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-04-02
+
+### Added
+- `store_result_metadata()` in `tools/shared.py`: writes `result_metadata.json` alongside `result.json` in S3; fields: `run_id`, `schema`, `row_count`, `bytes_scanned`, `cost`, `source_id`, `created_at`
+- Schema inferred from first result row: `int→bigint`, `float→double`, `bool→boolean`, other→`string`; empty result sets produce `schema: []`
+- `metadata_uri` field in `excavate` response pointing to the metadata file
+- 3 new tests: metadata written alongside result, schema type inference, empty-row graceful handling (#29)
+
+## [0.6.0] - 2026-04-02
+
+### Added
+- CDK Capstone mode: `ClawsGatewayStack` optional `shared_gateway_id` context var to register clAWS tools on an existing AgentCore Gateway (shared with Router/Data/Compute); standalone and shared modes both supported (#34)
+- `TestFullPipeline` integration test class: 10 end-to-end tests covering the full `plan → excavate → refine → export` chain using Substrate; validates plan_id bait-and-switch protection at handler boundary (#33)
+- `docs/capstone-deployment.md`: shared-Gateway deployment guide for the Quick Suite capstone integration
+
+## [0.5.0] - 2026-04-02
+
+### Added
+- MCP extensibility: `tools/mcp/registry.py` loads server config from env or S3; `tools/mcp/client.py` provides `asyncio.run()` bridge for Lambda sync handlers (#22)
+- `tools/excavate/executors/mcp.py`: `execute_mcp()` executor + content-block adapter; `mcp_tool` query type added to `EXECUTORS` dispatch (#23)
+- `discover._discover_mcp()`: discovers MCP server tools as data sources; `"mcp"` domain added to discover routing (#24)
+- `probe._probe_mcp()`: invokes MCP tools to probe schema and samples (#25)
+- `plan/handler.py`: `mcp_tool` query type; bypasses SQL validator and cost estimator for MCP plans (#26)
+- `docs/mcp-integration.md`: MCP server configuration, tool discovery, and excavation guide (#27)
+- 50 new tests covering MCP executor, registry, and all handler MCP paths
+
+## [0.4.1] - 2026-04-01
+
+### Added
+- `execute_opensearch()`: aggregation result flattening — `aggs` response keys merged into each hit row; `bucket_key` and `doc_count` exposed as columns (#9)
+- `constraints.read_only` enforcement in Athena executor: sets `workgroup` to `"claws-read-only"` when `read_only: true` (#10)
+- 10 new executor tests in `test_executors.py` covering OpenSearch aggregation flattening and Athena read_only workgroup enforcement
+
 ## [0.4.0] - 2026-04-01
 
 ### Added
@@ -60,8 +93,12 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 - Architecture, safety model, and Quick Suite integration design docs
 - Example workflows: genomics excavation, log analysis, document mining
 
-[Unreleased]: https://github.com/scttfrdmn/claws/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/scttfrdmn/claws/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/scttfrdmn/claws/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/scttfrdmn/claws/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/scttfrdmn/claws/releases/tag/v0.1.0
+[Unreleased]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/scttfrdmn/quick-suite-claws/releases/tag/v0.1.0
