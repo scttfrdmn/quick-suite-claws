@@ -293,7 +293,6 @@ def _export_to_quicksight(uri: str, payload: Any, run_id: str, export_id: str) -
                     }
                 }
             },
-            Permissions=[],
         )
 
         _quicksight_client().create_data_set(
@@ -320,7 +319,6 @@ def _export_to_quicksight(uri: str, payload: Any, run_id: str, export_id: str) -
                     }
                 }
             },
-            Permissions=[],
         )
 
         # Register in ClawsLookupTable for claws:// URI resolution
