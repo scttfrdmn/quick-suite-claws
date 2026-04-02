@@ -5,6 +5,7 @@ import aws_cdk as cdk
 from stacks.gateway_stack import ClawsGatewayStack
 from stacks.guardrails_stack import ClawsGuardrailsStack
 from stacks.policy_stack import ClawsPolicyStack
+from stacks.scheduler_stack import ClawsSchedulerStack
 from stacks.storage_stack import ClawsStorageStack
 from stacks.tools_stack import ClawsToolsStack
 
@@ -26,6 +27,14 @@ tools = ClawsToolsStack(
     app, "ClawsToolsStack",
     storage_stack=storage,
     guardrails_stack=guardrails,
+    env=env,
+)
+
+# Scheduler — watch runner Lambda + EventBridge Scheduler group
+scheduler_stack = ClawsSchedulerStack(
+    app, "ClawsSchedulerStack",
+    storage_stack=storage,
+    tools_stack=tools,
     env=env,
 )
 

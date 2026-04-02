@@ -10,6 +10,7 @@ from typing import Any
 
 from tools.errors import ForbiddenError, NotFoundError
 from tools.excavate.executors.athena import execute_athena
+from tools.excavate.executors.dynamodb import execute_dynamodb
 from tools.excavate.executors.mcp import execute_mcp
 from tools.excavate.executors.opensearch import execute_opensearch
 from tools.excavate.executors.s3_select import execute_s3_select
@@ -44,6 +45,7 @@ def _infer_schema(rows: list[dict]) -> list[dict]:
 
 EXECUTORS = {
     "athena_sql": execute_athena,
+    "dynamodb_partiql": execute_dynamodb,
     "opensearch_dsl": execute_opensearch,
     "s3_select_sql": execute_s3_select,
     "mcp_tool": execute_mcp,

@@ -7,6 +7,19 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-02
+
+### Added
+- `claws.watch` tool Lambda: create, update, and delete scheduled watches on locked plans; schedule validated as `rate()` or `cron()` expression; plan must exist at creation time (422 if not found) (#35)
+- `claws.watches` tool Lambda: list watches with optional `status_filter` and `source_id_filter`; `source_id` denormalized from plan at watch creation time (#36)
+- `claws-watches` DynamoDB table in `ClawsStorageStack`: PK `watch_id`, 90-day default TTL (#37)
+- Watch runner Lambda (`claws-watch-runner`): receives `watch_id` from EventBridge Scheduler, executes locked plan, evaluates optional condition (`gt`/`gte`/`lt`/`lte`/`eq`/`ne`), fires notification target; no LLM at execution time; increments `consecutive_errors` and pauses watch after 3 failures (#38)
+- `ClawsSchedulerStack`: EventBridge ScheduleGroup `claws-watches`, runner Lambda with Athena/S3/DynamoDB/PartiQL IAM grants, scheduler execution role; wires `CLAWS_WATCH_RUNNER_ARN` and `CLAWS_WATCH_RUNNER_ROLE_ARN` into watch tool Lambda (#39)
+- DynamoDB PartiQL executor (`tools/excavate/executors/dynamodb.py`): paginates `execute_statement()` up to 1000 rows; `dynamodb_partiql` query type added to `EXECUTORS` dispatch (#49)
+- `store_watch()`, `load_watch()`, `update_watch()`, `delete_watch()`, `list_watches()`, `new_watch_id()` in `tools/shared.py`
+- `_clean_item()` utility in `tools/shared.py`: strips `None` and empty collections before DynamoDB writes (required for Substrate compatibility)
+- 15 new tests: 6 watch handler (create/update/delete), 3 watches handler (list/filter), 6 runner (condition eval, audit log, last-run tracking, error handling) (#40)
+
 ## [0.6.1] - 2026-04-02
 
 ### Added
@@ -93,7 +106,8 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 - Architecture, safety model, and Quick Suite integration design docs
 - Example workflows: genomics excavation, log analysis, document mining
 
-[Unreleased]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.4.1...v0.5.0

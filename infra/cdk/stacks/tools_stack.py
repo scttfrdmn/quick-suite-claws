@@ -15,7 +15,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-TOOL_NAMES = ["discover", "probe", "plan", "excavate", "refine", "export"]
+TOOL_NAMES = ["discover", "probe", "plan", "excavate", "refine", "export", "watch", "watches"]
 
 
 class ClawsToolsStack(cdk.Stack):
@@ -57,6 +57,7 @@ class ClawsToolsStack(cdk.Stack):
         storage_stack.athena_results_bucket.grant_read_write(lambda_role)
         storage_stack.plans_table.grant_read_write_data(lambda_role)
         storage_stack.schemas_table.grant_read_write_data(lambda_role)
+        storage_stack.watches_table.grant_read_write_data(lambda_role)
 
         # Glue read-only for discover/probe
         lambda_role.add_to_policy(iam.PolicyStatement(
@@ -135,6 +136,7 @@ class ClawsToolsStack(cdk.Stack):
             "CLAWS_RUNS_BUCKET": storage_stack.runs_bucket.bucket_name,
             "CLAWS_PLANS_TABLE": storage_stack.plans_table.table_name,
             "CLAWS_SCHEMAS_TABLE": storage_stack.schemas_table.table_name,
+            "CLAWS_WATCHES_TABLE": storage_stack.watches_table.table_name,
             "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
             "CLAWS_ATHENA_OUTPUT": f"s3://{storage_stack.athena_results_bucket.bucket_name}/",
             "CLAWS_GUARDRAIL_ID": guardrails_stack.base_guardrail_id,

@@ -20,6 +20,7 @@ def reset_shared(monkeypatch):
     monkeypatch.setattr(_shared, "RUNS_BUCKET", "claws-runs")
     monkeypatch.setattr(_shared, "PLANS_TABLE", "claws-plans")
     monkeypatch.setattr(_shared, "SCHEMAS_TABLE", "claws-schemas")
+    monkeypatch.setattr(_shared, "WATCHES_TABLE", "claws-watches")
     monkeypatch.setattr(_shared, "GUARDRAIL_ID", "")
     monkeypatch.setattr(_shared, "METRICS_NAMESPACE", "")
     yield
@@ -61,6 +62,19 @@ def plans_table(substrate):
         BillingMode="PAY_PER_REQUEST",
     )
     return ddb.Table("claws-plans")
+
+
+@pytest.fixture()
+def watches_table(substrate):
+    """Create the claws-watches DynamoDB table."""
+    ddb = boto3.resource("dynamodb", region_name="us-east-1")
+    ddb.create_table(
+        TableName="claws-watches",
+        KeySchema=[{"AttributeName": "watch_id", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "watch_id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    return ddb.Table("claws-watches")
 
 
 @pytest.fixture()

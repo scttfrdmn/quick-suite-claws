@@ -114,6 +114,7 @@ def call_router(router_tool: str, prompt: str, max_tokens: int = 2048) -> str | 
 RUNS_BUCKET = os.environ.get("CLAWS_RUNS_BUCKET", "claws-runs")
 PLANS_TABLE = os.environ.get("CLAWS_PLANS_TABLE", "claws-plans")
 SCHEMAS_TABLE = os.environ.get("CLAWS_SCHEMAS_TABLE", "claws-schemas")
+WATCHES_TABLE = os.environ.get("CLAWS_WATCHES_TABLE", "claws-watches")
 GUARDRAIL_ID = os.environ.get("CLAWS_GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("CLAWS_GUARDRAIL_VERSION", "DRAFT")
 METRICS_NAMESPACE = os.environ.get("CLAWS_METRICS_NAMESPACE", "")
@@ -153,6 +154,10 @@ def new_run_id() -> str:
 
 def new_export_id() -> str:
     return f"export-{uuid.uuid4().hex[:8]}"
+
+
+def new_watch_id() -> str:
+    return f"watch-{uuid.uuid4().hex[:8]}"
 
 
 # --- Audit logging ---
@@ -247,15 +252,27 @@ def load_result(run_id: str) -> Any:
 
 # --- Plan storage ---
 
+def _clean_item(item: dict) -> dict:
+    """Remove None values and empty collections from a DynamoDB item dict.
+
+    DynamoDB NULL type is not used; empty maps/lists cause TypeDeserializer
+    failures in some SDK versions.
+    """
+    return {
+        k: v for k, v in item.items()
+        if v is not None and not (isinstance(v, (dict, list)) and not v)
+    }
+
+
 def store_plan(plan_id: str, plan: dict) -> None:
     """Store an execution plan in DynamoDB."""
     table = dynamodb_resource().Table(PLANS_TABLE)
-    table.put_item(Item={
+    table.put_item(Item=_clean_item({
         "plan_id": plan_id,
         "created_at": datetime.now(UTC).isoformat(),
         "ttl": int(time.time()) + 86400,  # 24h TTL
         **plan,
-    })
+    }))
 
 
 def load_plan(plan_id: str) -> dict | None:
@@ -264,6 +281,75 @@ def load_plan(plan_id: str) -> dict | None:
     resp = table.get_item(Key={"plan_id": plan_id})
     item: dict | None = resp.get("Item")
     return item
+
+
+# --- Watch storage ---
+
+def store_watch(watch_id: str, spec: dict) -> None:
+    """Store a watch spec in DynamoDB.
+
+    None values and empty collections are omitted — DynamoDB NULL type is not used,
+    and empty maps/lists cause TypeDeserializer failures in some SDK versions.
+    """
+    table = dynamodb_resource().Table(WATCHES_TABLE)
+    item = {"watch_id": watch_id}
+    for k, v in spec.items():
+        if v is None:
+            continue
+        if isinstance(v, (dict, list)) and not v:
+            continue
+        item[k] = v
+    table.put_item(Item=item)
+
+
+def load_watch(watch_id: str) -> dict | None:
+    """Load a watch spec from DynamoDB."""
+    table = dynamodb_resource().Table(WATCHES_TABLE)
+    resp = table.get_item(Key={"watch_id": watch_id})
+    return resp.get("Item")
+
+
+def update_watch(watch_id: str, updates: dict) -> None:
+    """Apply a dict of attribute updates to an existing watch item.
+
+    None values are skipped — use delete_watch to remove an item entirely.
+    """
+    updates = {k: v for k, v in updates.items() if v is not None}
+    if not updates:
+        return
+    table = dynamodb_resource().Table(WATCHES_TABLE)
+    keys = list(updates.keys())
+    vals = list(updates.values())
+    set_clauses = ", ".join(f"#k{i} = :v{i}" for i in range(len(keys)))
+    names = {f"#k{i}": keys[i] for i in range(len(keys))}
+    values = {f":v{i}": vals[i] for i in range(len(vals))}
+    table.update_item(
+        Key={"watch_id": watch_id},
+        UpdateExpression=f"SET {set_clauses}",
+        ExpressionAttributeNames=names,
+        ExpressionAttributeValues=values,
+    )
+
+
+def delete_watch(watch_id: str) -> None:
+    """Delete a watch item from DynamoDB."""
+    table = dynamodb_resource().Table(WATCHES_TABLE)
+    table.delete_item(Key={"watch_id": watch_id})
+
+
+def list_watches(status_filter: str | None = None) -> list[dict]:
+    """Scan the watches table; optionally filter by status."""
+    table = dynamodb_resource().Table(WATCHES_TABLE)
+    if status_filter:
+        resp = table.scan(
+            FilterExpression="#s = :s",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":s": status_filter},
+        )
+    else:
+        resp = table.scan()
+    items: list[dict] = resp.get("Items", [])
+    return items
 
 
 # --- Schema cache ---
