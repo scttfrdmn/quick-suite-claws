@@ -149,6 +149,9 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
     }
     if condition:
         spec["condition"] = condition
+    # Denormalize team_id from plan at watch creation so watches can be filtered by team
+    if plan.get("team_id"):
+        spec["team_id"] = plan["team_id"]
 
     store_watch(watch_id, spec)
     _create_schedule(watch_id, schedule, {"watch_id": watch_id})

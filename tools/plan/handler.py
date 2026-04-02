@@ -35,6 +35,7 @@ def handler(event: dict, context: Any) -> dict:
     objective = body.get("objective", "")
     source_id = body.get("source_id", "")
     constraints = body.get("constraints", {})
+    team_id = body.get("team_id")
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
     request_id = event.get("requestContext", {}).get("requestId", "")
 
@@ -156,12 +157,15 @@ def handler(event: dict, context: Any) -> dict:
         "source_id": source_id,
         "query": generated_query,
         "query_type": query_type,
+        "created_by": principal,
         "constraints": {
             "max_bytes_scanned": cost_est.get("estimated_bytes_scanned", 0),
             "timeout_seconds": constraints.get("timeout_seconds", 30),
             "read_only": constraints.get("read_only", True),
         },
     }
+    if team_id:
+        plan["team_id"] = team_id
     store_plan(plan_id, plan)
 
     response_body = {

@@ -275,6 +275,31 @@ def store_plan(plan_id: str, plan: dict) -> None:
     }))
 
 
+def list_plans_by_team(team_id: str) -> list[dict]:
+    """Scan the plans table filtered by team_id."""
+    table = dynamodb_resource().Table(PLANS_TABLE)
+    resp = table.scan(
+        FilterExpression="#t = :t",
+        ExpressionAttributeNames={"#t": "team_id"},
+        ExpressionAttributeValues={":t": team_id},
+    )
+    return resp.get("Items", [])
+
+
+def share_plan(plan_id: str, shared_with: list[str]) -> bool:
+    """Write shared_with list onto a plan item. Returns False if plan not found."""
+    table = dynamodb_resource().Table(PLANS_TABLE)
+    resp = table.get_item(Key={"plan_id": plan_id})
+    if not resp.get("Item"):
+        return False
+    table.update_item(
+        Key={"plan_id": plan_id},
+        UpdateExpression="SET shared_with = :sw",
+        ExpressionAttributeValues={":sw": shared_with},
+    )
+    return True
+
+
 def load_plan(plan_id: str) -> dict | None:
     """Load a plan from DynamoDB."""
     table = dynamodb_resource().Table(PLANS_TABLE)
@@ -337,17 +362,38 @@ def delete_watch(watch_id: str) -> None:
     table.delete_item(Key={"watch_id": watch_id})
 
 
-def list_watches(status_filter: str | None = None) -> list[dict]:
-    """Scan the watches table; optionally filter by status."""
+def list_watches(
+    status_filter: str | None = None,
+    team_id_filter: str | None = None,
+) -> list[dict]:
+    """Scan the watches table; optionally filter by status and/or team_id."""
     table = dynamodb_resource().Table(WATCHES_TABLE)
+
+    filter_parts = []
+    names: dict = {}
+    values: dict = {}
+
     if status_filter:
+        filter_parts.append("#s = :s")
+        names["#s"] = "status"
+        values[":s"] = status_filter
+
+    if team_id_filter:
+        filter_parts.append("#tid = :tid")
+        names["#tid"] = "team_id"
+        values[":tid"] = team_id_filter
+
+    if filter_parts:
+        from boto3.dynamodb.conditions import Attr  # noqa: PLC0415
+        filter_expr = " AND ".join(filter_parts)
         resp = table.scan(
-            FilterExpression="#s = :s",
-            ExpressionAttributeNames={"#s": "status"},
-            ExpressionAttributeValues={":s": status_filter},
+            FilterExpression=filter_expr,
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues=values,
         )
     else:
         resp = table.scan()
+
     items: list[dict] = resp.get("Items", [])
     return items
 

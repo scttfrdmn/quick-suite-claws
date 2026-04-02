@@ -178,7 +178,8 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - Plan-to-execution linkage (plan_id validation in excavate)
 - CDK stacks for all infrastructure, including Capstone mode (shared Gateway)
 - Live AWS test tier (`tools/tests/live/`) for manual pre-release validation
-- 155 passing tests (substrate integration + pure unit)
+- v1.0.0 collaboration features: `team_id` on plans + watches; `claws.team_plans`; `claws.share_plan`; `excavate` shared_with check; catalog-aware `discover` with `registry` domain querying `qs-data-source-registry`
+- 200 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
@@ -189,11 +190,13 @@ Released:
 - **v0.4.1** — OpenSearch aggregation flattening + executor tests ✓
 - **v0.5.0** — MCP extensibility (issues #22–#27) ✓
 - **v0.6.0** — Capstone integration (issues #33–#34) ✓
+- **v0.7.0** — Scheduled watches: `claws.watch` + `claws.watches` tools, watch runner Lambda, EventBridge Scheduler, `ClawsSchedulerStack`, DynamoDB PartiQL executor (issues #35–#40, #49) ✓
+- **v1.0.0** — Collaboration: `team_id` on plans + watches, `claws.team_plans` tool, `claws.share_plan` tool, catalog-aware `discover` querying quick-suite-data source registry (issues #51–#55) ✓
 
 Upcoming:
-- **v0.7.0** — Scheduled watches: `claws.watch` + `claws.watches` tools, watch runner Lambda, EventBridge Scheduler, `ClawsSchedulerStack` (issues #35–#40)
 - **v0.8.0** — Feed materialization: `merge` refine operation, feed watch type, export append/overwrite mode (issues #41–#44)
 - **v0.9.0** — Drift detection: `diff_results` utility, drift condition type, diff summary in export (issues #45–#48)
+- **v1.1.0** — Compliance: IRB approval workflow (`pending_approval` plan status + `approve_plan` Lambda), FERPA Guardrail preset, Cedar policy templates, compliance audit export Lambda (issues #56–#60)
 
 ## Design docs
 

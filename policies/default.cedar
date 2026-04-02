@@ -102,3 +102,27 @@ when {
   context.destination.cross_domain == true &&
   context.hitl_approval_id != ""
 };
+
+// ============================================================
+// TEAM_PLANS — list plans by team_id (read-only)
+// ============================================================
+permit(
+  principal,
+  action == Action::"team_plans",
+  resource
+)
+when {
+  context.team_id in principal.team_ids
+};
+
+// ============================================================
+// PLAN.SHARE — share a plan; only the plan owner may do this
+// ============================================================
+permit(
+  principal,
+  action == Action::"plan.share",
+  resource
+)
+when {
+  resource.created_by == principal.id
+};

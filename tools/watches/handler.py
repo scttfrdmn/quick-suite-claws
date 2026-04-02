@@ -11,13 +11,14 @@ def handler(event: dict, context: Any) -> dict:
     body = json.loads(event.get("body", "{}")) if isinstance(event.get("body"), str) else event
     status_filter = body.get("status_filter")
     source_id_filter = body.get("source_id_filter")
+    team_id_filter = body.get("team_id_filter")
     principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
     request_id = event.get("requestContext", {}).get("requestId", "")
 
     if status_filter and status_filter not in ("active", "paused", "errored"):
         return error("status_filter must be active, paused, or errored")
 
-    watches = list_watches(status_filter=status_filter)
+    watches = list_watches(status_filter=status_filter, team_id_filter=team_id_filter)
 
     # Apply source_id_filter — source_id is denormalized onto the watch record at creation
     if source_id_filter:
@@ -25,9 +26,11 @@ def handler(event: dict, context: Any) -> dict:
 
     result = [_format_watch(w) for w in watches]
 
-    audit_log("watches", principal, {"status_filter": status_filter,
-              "source_id_filter": source_id_filter},
-              {"count": len(result)}, request_id=request_id)
+    audit_log("watches", principal, {
+        "status_filter": status_filter,
+        "source_id_filter": source_id_filter,
+        "team_id_filter": team_id_filter,
+    }, {"count": len(result)}, request_id=request_id)
 
     return success({"watches": result})
 

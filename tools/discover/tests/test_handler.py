@@ -18,10 +18,16 @@ def reset_clients():
     _mod.GLUE_CLIENT = None
     _mod.OPENSEARCH_CLIENT = None
     _mod.S3_CLIENT = None
+    _mod._DYNAMODB_RESOURCE = None
+    _mod._SSM_CLIENT = None
+    _mod._DATA_SOURCE_REGISTRY_TABLE = None
     yield
     _mod.GLUE_CLIENT = None
     _mod.OPENSEARCH_CLIENT = None
     _mod.S3_CLIENT = None
+    _mod._DYNAMODB_RESOURCE = None
+    _mod._SSM_CLIENT = None
+    _mod._DATA_SOURCE_REGISTRY_TABLE = None
 
 
 def _create_glue_db_and_table(glue, db_name: str, table_name: str, space: str = "research"):

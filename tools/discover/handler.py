@@ -1,6 +1,7 @@
 """clAWS discover tool — find data sources matching a topic."""
 
 import json
+import os
 from typing import Any
 
 import boto3
@@ -11,6 +12,11 @@ from tools.shared import audit_log, error, success
 GLUE_CLIENT = None
 OPENSEARCH_CLIENT = None
 S3_CLIENT = None
+_DYNAMODB_RESOURCE = None
+_SSM_CLIENT = None
+
+# Data source registry table name — resolved lazily from SSM or env override
+_DATA_SOURCE_REGISTRY_TABLE: str | None = None
 
 
 def glue_client() -> Any:
@@ -25,6 +31,49 @@ def _s3_client() -> Any:
     if S3_CLIENT is None:
         S3_CLIENT = boto3.client("s3")
     return S3_CLIENT
+
+
+def _dynamodb_resource() -> Any:
+    global _DYNAMODB_RESOURCE
+    if _DYNAMODB_RESOURCE is None:
+        _DYNAMODB_RESOURCE = boto3.resource("dynamodb")
+    return _DYNAMODB_RESOURCE
+
+
+def _ssm_client() -> Any:
+    global _SSM_CLIENT
+    if _SSM_CLIENT is None:
+        _SSM_CLIENT = boto3.client("ssm")
+    return _SSM_CLIENT
+
+
+def _registry_table_name() -> str | None:
+    """Return the data source registry DynamoDB table name.
+
+    Checks DATA_SOURCE_REGISTRY_TABLE env var first (set by CDK / test monkeypatch).
+    Falls back to reading SSM param /quick-suite/data/source-registry-arn, which
+    contains the table ARN; extracts the table name from the ARN.
+    Returns None if neither is configured.
+    """
+    global _DATA_SOURCE_REGISTRY_TABLE
+    if _DATA_SOURCE_REGISTRY_TABLE is not None:
+        return _DATA_SOURCE_REGISTRY_TABLE
+
+    from_env = os.environ.get("DATA_SOURCE_REGISTRY_TABLE", "")
+    if from_env:
+        _DATA_SOURCE_REGISTRY_TABLE = from_env
+        return _DATA_SOURCE_REGISTRY_TABLE
+
+    try:
+        resp = _ssm_client().get_parameter(Name="/quick-suite/data/source-registry-arn")
+        arn = resp["Parameter"]["Value"]
+        # ARN format: arn:aws:dynamodb:<region>:<account>:table/<table-name>
+        table_name = arn.split("/")[-1]
+        _DATA_SOURCE_REGISTRY_TABLE = table_name
+        return _DATA_SOURCE_REGISTRY_TABLE
+    except Exception as e:
+        print(f"Could not load source registry table from SSM: {e}")
+        return None
 
 
 def handler(event: dict, context: Any) -> dict:
@@ -63,6 +112,10 @@ def handler(event: dict, context: Any) -> dict:
     # Search registered MCP servers
     if "mcp" in domains:
         sources.extend(_discover_mcp(query, spaces, limit))
+
+    # Search quick-suite-data source registry
+    if "registry" in domains:
+        sources.extend(_discover_registry(query, limit))
 
     # Sort by confidence, apply limit
     sources.sort(key=lambda s: s.get("confidence", 0), reverse=True)
@@ -253,5 +306,62 @@ def _discover_mcp(query: str, spaces: list[str], limit: int) -> list[dict]:
 
         except Exception as e:
             print(f"MCP discovery error for server '{server_name}': {e}")
+
+    return sources
+
+
+def _discover_registry(query: str, limit: int) -> list[dict]:
+    """Search the quick-suite-data source registry DynamoDB table.
+
+    The table is populated by quick-suite-data's register-source Lambda and
+    contains entries from roda_load and s3_load operations. Each item has at
+    minimum: source_id (PK), source_type, name/description, data_classification,
+    and quality_score fields.
+
+    Table name comes from DATA_SOURCE_REGISTRY_TABLE env var or SSM param
+    /quick-suite/data/source-registry-arn (ARN → table name extraction).
+    """
+    table_name = _registry_table_name()
+    if not table_name:
+        print("Registry domain requested but no table configured — skipping")
+        return []
+
+    sources: list[dict] = []
+    query_terms = query.lower().split()
+
+    try:
+        table = _dynamodb_resource().Table(table_name)
+        resp = table.scan()
+        items = resp.get("Items", [])
+
+        for item in items:
+            name = str(item.get("name", item.get("source_id", ""))).lower()
+            desc = str(item.get("description", "")).lower()
+            tags = " ".join(str(t) for t in item.get("tags", [])).lower()
+
+            score = 0.0
+            for term in query_terms:
+                if term in name:
+                    score += 0.4
+                if term in desc:
+                    score += 0.3
+                if term in tags:
+                    score += 0.2
+
+            if score > 0:
+                entry: dict = {
+                    "id": item.get("source_id", ""),
+                    "kind": "registry",
+                    "confidence": min(score, 1.0),
+                    "reason": "Matches query in registry name or description",
+                }
+                if "data_classification" in item:
+                    entry["data_classification"] = item["data_classification"]
+                if "quality_score" in item:
+                    entry["quality_score"] = float(item["quality_score"])
+                sources.append(entry)
+
+    except Exception as e:
+        print(f"Registry discovery error: {e}")
 
     return sources

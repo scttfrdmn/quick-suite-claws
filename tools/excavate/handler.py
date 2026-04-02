@@ -72,6 +72,19 @@ def handler(event: dict, context: Any) -> dict:
         if plan is None:
             return error(NotFoundError(f"Plan {plan_id} not found"))
 
+        # Check principal is authorized: must be plan owner OR in shared_with list
+        plan_owner = plan.get("created_by", "")
+        shared_with = plan.get("shared_with", [])
+        if plan_owner and principal != plan_owner and principal not in shared_with:
+            audit_log("excavate", principal, body, {
+                "status": "rejected",
+                "reason": "Principal not authorized to excavate this plan",
+            }, request_id=request_id)
+            return error(ForbiddenError(
+                "Not authorized to excavate this plan. "
+                "You must be the plan owner or have been granted access via share_plan."
+            ))
+
         # Verify the query matches the plan — prevents bait-and-switch
         if plan.get("query") != query:
             audit_log("excavate", principal, body, {
