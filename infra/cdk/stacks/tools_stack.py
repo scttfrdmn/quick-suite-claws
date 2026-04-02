@@ -10,6 +10,9 @@ from aws_cdk import (
 from aws_cdk import (
     aws_lambda as _lambda,
 )
+from aws_cdk import (
+    aws_ssm as ssm,
+)
 from constructs import Construct
 
 TOOL_NAMES = ["discover", "probe", "plan", "excavate", "refine", "export"]
@@ -135,6 +138,16 @@ class ClawsToolsStack(cdk.Stack):
                 memory_size=512,
             )
             self.functions[tool_name] = fn
+
+        # SSM export for qs-discover unified discovery Lambda
+        if "discover" in self.functions:
+            ssm.StringParameter(
+                self,
+                "ClawsDiscoverArnParam",
+                parameter_name="/quick-suite/lambdas/claws-discover-arn",
+                string_value=self.functions["discover"].function_arn,
+                description="claws-discover Lambda ARN for qs-discover fan-out",
+            )
 
         # Outputs
         for name, fn in self.functions.items():
