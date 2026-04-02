@@ -179,7 +179,8 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - CDK stacks for all infrastructure, including Capstone mode (shared Gateway)
 - Live AWS test tier (`tools/tests/live/`) for manual pre-release validation
 - v0.10.0 collaboration features: `team_id` on plans + watches; `claws.team_plans`; `claws.share_plan`; `excavate` shared_with check; catalog-aware `discover` with `registry` domain querying `qs-data-source-registry`
-- 200 passing tests (substrate integration + pure unit)
+- v0.11.0 compliance: IRB `pending_approval` plan status; `approve_plan` internal Lambda; `plan.approve` Cedar action; FERPA Guardrail preset (`guardrails/ferpa/ferpa_guardrail.json`); four Cedar policy templates (`policies/templates/`); compliance audit export Lambda (`audit_export`) writing SHA-256-hashed NDJSON; CDK `enable_ferpa_guardrail` context flag
+- 247 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
@@ -194,9 +195,9 @@ Released:
 - **v0.8.0** — Feed materialization: `merge` refine operation, feed watch type, export append/overwrite mode (issues #41–#44) ✓
 - **v0.9.0** — Drift detection: `diff_results` utility in `shared.py`, drift condition type in watch runner, diff summary passthrough in export provenance (issues #45–#48) ✓
 - **v0.10.0** — Collaboration: `team_id` on plans + watches, `claws.team_plans` tool, `claws.share_plan` tool, catalog-aware `discover` querying quick-suite-data source registry (issues #51–#55) ✓
+- **v0.11.0** — Compliance: IRB approval workflow (`pending_approval` plan status + `approve_plan` Lambda + `plan.approve` Cedar action), FERPA Guardrail preset, four Cedar policy templates, compliance `audit_export` Lambda (NDJSON with SHA-256 hashed I/O) (issues #56–#60) ✓
 
-Upcoming:
-- **v0.11.0** — Compliance: IRB approval workflow (`pending_approval` plan status + `approve_plan` Lambda), FERPA Guardrail preset, Cedar policy templates, compliance audit export Lambda (issues #56–#60)
+All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11).
 
 ## Design docs
 

@@ -126,3 +126,34 @@ permit(
 when {
   resource.created_by == principal.id
 };
+
+// ============================================================
+// PLAN.APPROVE — approve a pending IRB plan for execution
+//
+// The resource is the plan item. requires_irb is a boolean
+// attribute on the source's policy context. Only principals
+// with the irb_approver role may call this action.
+//
+// Structural rule: an approver cannot approve their own plan
+// (created_by != principal.id). Semantic/content policy is
+// enforced by the approve_plan Lambda handler.
+// ============================================================
+permit(
+  principal,
+  action == Action::"plan.approve",
+  resource
+)
+when {
+  principal.roles.contains("irb_approver") &&
+  resource.created_by != principal.id
+};
+
+// Deny approval of one's own plan (conflict of interest)
+forbid(
+  principal,
+  action == Action::"plan.approve",
+  resource
+)
+when {
+  resource.created_by == principal.id
+};

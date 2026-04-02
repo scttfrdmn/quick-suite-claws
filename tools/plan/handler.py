@@ -152,12 +152,19 @@ def handler(event: dict, context: Any) -> dict:
             })
 
     # Store the plan
+    # requires_irb may be passed in by the caller or set on the source's policy
+    # context. When true, the plan is stored with status "pending_approval" and
+    # excavate will block until an IRB approver calls approve_plan.
+    requires_irb = body.get("requires_irb", False)
+    plan_status = "pending_approval" if requires_irb else "ready"
+
     plan_id = new_plan_id()
     plan = {
         "source_id": source_id,
         "query": generated_query,
         "query_type": query_type,
         "created_by": principal,
+        "status": plan_status,
         "constraints": {
             "max_bytes_scanned": cost_est.get("estimated_bytes_scanned", 0),
             "timeout_seconds": constraints.get("timeout_seconds", 30),
@@ -170,7 +177,7 @@ def handler(event: dict, context: Any) -> dict:
 
     response_body = {
         "plan_id": plan_id,
-        "status": "ready",
+        "status": plan_status,
         "steps": [
             {
                 "tool": "claws.excavate",

@@ -1,0 +1,89 @@
+{
+  "description": "FERPA-compliant Bedrock Guardrail configuration for clAWS.\n\nBlocks access to FERPA-protected student education record categories:\ngrades, enrollment status, financial aid, disciplinary records, and\nstudent schedules. Also detects and blocks SSN patterns and student ID\npatterns to prevent inadvertent PII exposure in query results.\n\nUsage: deploy via CDK when the 'enable_ferpa_guardrail' context flag is true.\nThe FERPA guardrail replaces (not supplements) the base guardrail on\nworkloads processing student data.",
+  "name": "claws-ferpa",
+  "blockedInputMessaging": "This request involves FERPA-protected student data categories that cannot be accessed through this system.",
+  "blockedOutputsMessaging": "The result contains FERPA-protected student data that cannot be returned.",
+  "topicPolicy": {
+    "topics": [
+      {
+        "name": "grades",
+        "definition": "Student academic grades, grade point averages, transcripts, or academic performance records",
+        "examples": [
+          "What is the student's GPA?",
+          "Show me the grade distribution for this course",
+          "List students with failing grades"
+        ],
+        "type": "DENY"
+      },
+      {
+        "name": "enrollment_status",
+        "definition": "Whether a student is currently enrolled, their enrollment history, or registration details",
+        "examples": [
+          "Is this student currently enrolled?",
+          "List all enrolled students in the program",
+          "Show enrollment changes over the semester"
+        ],
+        "type": "DENY"
+      },
+      {
+        "name": "financial_aid",
+        "definition": "Student financial aid awards, loans, grants, scholarships, or financial need assessments",
+        "examples": [
+          "How much financial aid did this student receive?",
+          "List students receiving Pell grants",
+          "Show financial aid distribution by department"
+        ],
+        "type": "DENY"
+      },
+      {
+        "name": "disciplinary_records",
+        "definition": "Student disciplinary history, conduct violations, sanctions, or academic integrity records",
+        "examples": [
+          "Show disciplinary actions for this student",
+          "List students with conduct violations",
+          "Retrieve academic integrity case records"
+        ],
+        "type": "DENY"
+      },
+      {
+        "name": "student_schedules",
+        "definition": "Individual student class schedules, course registrations, or room and time assignments that identify a specific student",
+        "examples": [
+          "What classes is this student taking?",
+          "Show me the schedule for student ID 12345",
+          "List all courses a specific student is registered in"
+        ],
+        "type": "DENY"
+      }
+    ]
+  },
+  "sensitiveInformationPolicy": {
+    "piiEntities": [
+      {"type": "US_SOCIAL_SECURITY_NUMBER", "action": "BLOCK"},
+      {"type": "EMAIL", "action": "ANONYMIZE"},
+      {"type": "PHONE", "action": "ANONYMIZE"},
+      {"type": "NAME", "action": "ANONYMIZE"},
+      {"type": "ADDRESS", "action": "ANONYMIZE"},
+      {"type": "DATE_TIME", "action": "ANONYMIZE"}
+    ],
+    "regexes": [
+      {
+        "name": "ssn_pattern",
+        "description": "US Social Security Number pattern",
+        "pattern": "\\d{3}-\\d{2}-\\d{4}",
+        "action": "BLOCK"
+      },
+      {
+        "name": "student_id_pattern",
+        "description": "Student ID pattern (letter followed by 7 digits)",
+        "pattern": "[A-Z]\\d{7}",
+        "action": "BLOCK"
+      }
+    ]
+  },
+  "contentPolicy": {
+    "filters": [
+      {"type": "PROMPT_ATTACK", "inputStrength": "HIGH", "outputStrength": "NONE"}
+    ]
+  }
+}

@@ -72,6 +72,20 @@ def handler(event: dict, context: Any) -> dict:
         if plan is None:
             return error(NotFoundError(f"Plan {plan_id} not found"))
 
+        # Block execution if the plan requires IRB approval and is not yet approved
+        plan_status = plan.get("status", "ready")
+        if plan_status == "pending_approval":
+            audit_log("excavate", principal, body, {
+                "status": "pending_approval",
+                "plan_id": plan_id,
+                "reason": "Plan requires IRB approval before execution",
+            }, request_id=request_id)
+            return success({
+                "status": "pending_approval",
+                "plan_id": plan_id,
+                "message": "This plan requires IRB approval before execution",
+            })
+
         # Check principal is authorized: must be plan owner OR in shared_with list
         plan_owner = plan.get("created_by", "")
         shared_with = plan.get("shared_with", [])
