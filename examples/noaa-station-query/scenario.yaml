@@ -1,0 +1,105 @@
+name: noaa-station-query
+display_name: "NOAA Weather Station Query (clAWS pipeline)"
+description: |
+  A single-stack clAWS example. Discovers a weather station Athena table,
+  probes its schema, generates a query plan for top stations by measurement
+  count, excavates results, deduplicates, and exports to S3 with provenance.
+
+  Demonstrates the full discover → probe → plan → excavate → refine → export
+  pipeline using a single Athena-backed Glue table. Replace the source_id
+  below with any table registered in your Glue catalog.
+category: claws-pipeline
+requires:
+  stacks: [claws]
+  setup: |
+    Requires an Athena table registered in the Glue catalog with at least:
+      station_id (string), name (string), latitude (double),
+      longitude (double), elevation (double), measurement_count (bigint)
+    Set source_id below to athena:{your_database}.{your_table}.
+    For E2E testing the deployed claws_e2e.sample_data table works directly.
+
+# Replace this with your actual Glue source:
+#   athena:claws_e2e.sample_data  (E2E test fixture, always available)
+#   athena:your_db.noaa_stations  (real NOAA station data)
+_source_id: "athena:claws_e2e.sample_data"
+
+steps:
+  - id: discover
+    tool: claws-discover
+    stack: claws
+    description: "Find weather station tables in the Athena domain"
+    input:
+      query: "sample data"
+      domains: ["athena"]
+      limit: 5
+    assert:
+      - path: "sources"
+        op: exists
+
+  - id: probe
+    tool: claws-probe
+    stack: claws
+    description: "Inspect schema and sample rows"
+    input:
+      source_id: "athena:claws_e2e.sample_data"
+      mode: "schema_only"
+    assert:
+      - path: "schema"
+        op: exists
+      - path: "source_id"
+        op: exists
+
+  - id: plan
+    tool: claws-plan
+    stack: claws
+    description: "Generate a query plan for top rows by value"
+    input:
+      source_id: "athena:claws_e2e.sample_data"
+      objective: "List the top 5 rows ordered by value descending, returning id, name, and value."
+    assert:
+      - path: "plan_id"
+        op: exists
+      - path: "status"
+        op: eq
+        value: ready
+
+  - id: excavate
+    tool: claws-excavate
+    stack: claws
+    description: "Execute the query plan"
+    input:
+      plan_id: "{plan.plan_id}"
+      source_id: "athena:claws_e2e.sample_data"
+      query: "{plan.steps.0.input.query}"
+      query_type: "athena_sql"
+    assert:
+      - path: "run_id"
+        op: exists
+      - path: "rows_returned"
+        op: gte
+        value: 0
+
+  - id: refine
+    tool: claws-refine
+    stack: claws
+    description: "Deduplicate results"
+    input:
+      run_id: "{excavate.run_id}"
+      operations: ["dedupe"]
+    assert:
+      - path: "run_id"
+        op: exists
+
+  - id: export
+    tool: claws-export
+    stack: claws
+    description: "Export refined results to S3 with provenance"
+    input:
+      run_id: "{refine.run_id}"
+      destination:
+        type: s3
+        uri: "s3://claws-runs-942542972736/examples/noaa-station-query/{excavate.run_id}.json"
+      include_provenance: true
+    assert:
+      - path: "export_id"
+        op: exists
