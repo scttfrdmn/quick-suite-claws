@@ -1,10 +1,16 @@
 """clAWS Scheduler Stack — watch runner Lambda and EventBridge Scheduler group."""
 
+import os
+
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as _lambda
 from aws_cdk import aws_scheduler as scheduler
 from constructs import Construct
+
+_TOOLS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../tools")
+)
 
 
 class ClawsSchedulerStack(cdk.Stack):
@@ -74,7 +80,16 @@ class ClawsSchedulerStack(cdk.Stack):
             function_name="claws-watch-runner",
             runtime=_lambda.Runtime.PYTHON_3_12,
             handler="tools.watch.runner.handler",
-            code=_lambda.Code.from_asset("../../tools"),
+            code=_lambda.Code.from_asset(
+                _TOOLS_DIR,
+                bundling=cdk.BundlingOptions(
+                    image=_lambda.Runtime.PYTHON_3_12.bundling_image,
+                    command=[
+                        "bash", "-c",
+                        "mkdir -p /asset-output/tools && cp -r /asset-input/. /asset-output/tools/",
+                    ],
+                ),
+            ),
             role=runner_role,
             environment={
                 "CLAWS_RUNS_BUCKET": storage_stack.runs_bucket.bucket_name,

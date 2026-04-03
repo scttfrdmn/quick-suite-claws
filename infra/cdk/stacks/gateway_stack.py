@@ -88,10 +88,17 @@ class ClawsGatewayStack(cdk.Stack):
         for tool_name in TOOL_NAMES:
             fn: _lambda.IFunction = tools_stack.functions[tool_name]
 
-            # Allow AgentCore to invoke this Lambda
-            fn.add_permission(
+            # Allow AgentCore to invoke this Lambda.
+            # Use CfnPermission (not fn.add_permission) to keep the resource in
+            # ClawsGatewayStack's scope. fn.add_permission would place it in
+            # ClawsToolsStack and create a cross-stack reference cycle:
+            #   ClawsToolsStack → ClawsGatewayStack.agentRuntimeArn
+            #   ClawsGatewayStack → ClawsToolsStack.fn.function_arn
+            _lambda.CfnPermission(
+                self,
                 f"AllowAgentCore-{tool_name}",
-                principal=iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+                function_name=fn.function_arn,
+                principal="bedrock-agentcore.amazonaws.com",
                 action="lambda:InvokeFunction",
                 source_arn=self.gateway_arn,
             )

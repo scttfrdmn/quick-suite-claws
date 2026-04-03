@@ -46,6 +46,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "live: live AWS integration tests (requires real credentials and env vars; run manually)",
+    "e2e: end-to-end tests against the deployed ClawsToolsStack (requires AWS credentials)",
 ]
 
 [tool.ruff]
