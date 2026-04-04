@@ -66,14 +66,28 @@ Agent (reasons here)                  clAWS tool plane (executes here)
 
 ## The Tool Pipeline
 
+**Tool Lambdas (AgentCore targets):**
+
 | Tool | What it does |
 |------|-------------|
-| `discover` | Find data sources in approved domains (Glue catalog, OpenSearch, S3) |
+| `discover` | Find data sources in approved domains (Glue catalog, OpenSearch, S3, source registry) |
 | `probe` | Inspect schema, sample rows, and cost estimates; ApplyGuardrail scans samples for PHI |
 | `plan` | Translate a free-text objective into a concrete query — the only tool with free-text input |
 | `excavate` | Execute the exact query from the plan; results scanned by ApplyGuardrail |
 | `refine` | Deduplicate, rank, and summarize results with a grounding guardrail |
 | `export` | Write results to S3, EventBridge, or Quick Sight with a provenance chain |
+| `team_plans` | List all plans for a team_id (read-only summaries) |
+| `share_plan` | Grant or revoke another principal's access to a plan |
+| `watch` | Create, update, or delete a scheduled watch on a locked plan |
+| `watches` | List active watches and their last-run status |
+
+**Internal Lambdas (not AgentCore targets):**
+
+| Lambda | What it does |
+|--------|-------------|
+| `approve_plan` | IRB reviewer approves a `pending_approval` plan; validates approver allowlist; blocks self-approval |
+| `audit_export` | Exports CloudWatch audit records to NDJSON in S3 with SHA-256-hashed I/O fields |
+| `claws-watch-runner` | Scheduled Lambda invoked by EventBridge Scheduler; executes locked plans without LLM involvement |
 
 A typical session through the pipeline:
 
@@ -111,6 +125,33 @@ contains injection-style content from the data itself.
 An attacker who wanted to bypass both layers would need to simultaneously fool a
 deterministic policy engine and a content safety model. In practice, the two layers
 catch entirely different threat classes.
+
+## Compliance Features
+
+clAWS is designed for regulated research and institutional data environments.
+
+**IRB Workflow** — When a `plan` call includes `requires_irb: true`, the plan status is set
+to `pending_approval` instead of `ready`. The `excavate` tool blocks execution until an
+authorized IRB reviewer approves the plan via the `approve_plan` internal Lambda. Reviewers
+are configured via the `CLAWS_IRB_APPROVERS` environment variable. Self-approval is blocked.
+
+**FERPA Guardrail Preset** — Deploy `guardrails/ferpa/ferpa_guardrail.json` by setting
+`enable_ferpa_guardrail: true` in CDK context. The preset blocks five denied topic categories
+(student PII export, FERPA evasion attempts, grade disclosure, directory waiver bypass, and
+bulk education record extraction) and blocks on SSN and student ID regex patterns.
+
+**Cedar Policy Templates** — Four pre-built templates in `policies/templates/`:
+- `read-only.cedar` — metadata-only access; no excavate or export
+- `no-pii-export.cedar` — allows excavation but forbids export when data is classified as PII
+- `approved-domains-only.cedar` — locks principals to a pre-approved domain list
+- `phi-approved.cedar` — PHI data access with clearance level ≥ 3, IRB approval, and HITL token
+
+**Compliance Audit Export** — The `audit_export` internal Lambda scans CloudWatch Logs and
+writes NDJSON audit records to `s3://claws-runs-{account}/audit-exports/`. All input and
+output fields are SHA-256-hashed — no raw data or PII appears in the export. Fields include
+`principal`, `tool`, `inputs_hash`, `outputs_hash`, `cost_usd`, `guardrail_trace`, `timestamp`.
+
+See [docs/compliance.md](docs/compliance.md) for the full compliance deployment guide.
 
 ## Requirements
 
@@ -189,7 +230,7 @@ See [docs/user-guide.md](docs/user-guide.md) for the full Cedar policy authoring
 ## Development and Testing
 
 ```bash
-# Run the full test suite (155 tests, no AWS credentials required)
+# Run the full test suite (247 tests, no AWS credentials required)
 uv run pytest tools/ -v
 
 # Lint and format
@@ -222,7 +263,8 @@ no single query can spend more than a dollar regardless of how large the table i
 | Doc | What it covers |
 |-----|---------------|
 | [docs/getting-started.md](docs/getting-started.md) | Deploy and run your first excavation, step by step |
-| [docs/user-guide.md](docs/user-guide.md) | Tool reference, Cedar policy authoring, guardrail customization |
+| [docs/user-guide.md](docs/user-guide.md) | Tool reference, Cedar policy authoring, guardrail customization, team and IRB workflows |
+| [docs/compliance.md](docs/compliance.md) | IRB workflow, FERPA preset, Cedar policy templates, audit export |
 | [docs/architecture.md](docs/architecture.md) | CDK stacks, storage layout, executor details |
 | [docs/safety-model.md](docs/safety-model.md) | Cedar vs Guardrails — the threat model and attachment points |
 | [docs/mcp-integration.md](docs/mcp-integration.md) | MCP server registry, transport options, pipeline walkthrough |

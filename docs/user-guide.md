@@ -740,3 +740,121 @@ cloudwatch.Alarm(
     alarm_description="More than 10 guardrail blocks on excavate in 5 minutes",
 )
 ```
+
+---
+
+## Team collaboration
+
+### Sharing a plan with colleagues
+
+The `share_plan` tool lets a plan owner grant other principals read and excavate access:
+
+```json
+{
+  "plan_id": "plan-abc12345",
+  "action": "grant",
+  "principal": "colleague-agent-id"
+}
+```
+
+To revoke:
+
+```json
+{
+  "plan_id": "plan-abc12345",
+  "action": "revoke",
+  "principal": "colleague-agent-id"
+}
+```
+
+Only the plan owner can grant or revoke access. Cedar enforces this via `resource.owner == principal`.
+
+### Listing a team's plans
+
+The `team_plans` tool returns all plans tagged with a team ID, regardless of who created them:
+
+```json
+{
+  "team_id": "sponsored-programs"
+}
+```
+
+Response includes `plan_id`, `status`, `objective` (first 100 chars), `created_by`,
+`created_at`, and `shared_with` for each plan. Read-only — does not require the caller
+to own the plans.
+
+---
+
+## IRB approval workflow
+
+For research involving human subjects, plans can require IRB review before excavation
+is permitted.
+
+### Creating a plan that requires IRB approval
+
+```json
+{
+  "objective": "Extract all student respondent IDs from the cohort survey for re-contact",
+  "source_id": "athena:research.cohort_survey_2024",
+  "requires_irb": true,
+  "constraints": {"read_only": true}
+}
+```
+
+The plan is created with `status: "pending_approval"`. The response includes `plan_id`
+and the message `"status": "pending_approval"` — the plan exists but cannot be excavated
+until approved.
+
+If a caller tries to excavate a `pending_approval` plan:
+
+```json
+{
+  "error": "Plan plan-abc12345 requires IRB approval before excavation. Contact an authorized IRB reviewer.",
+  "plan_id": "plan-abc12345",
+  "status": "pending_approval"
+}
+```
+
+### Approving a plan
+
+Invoke the `approve_plan` internal Lambda directly (not through AgentCore Gateway):
+
+```bash
+aws lambda invoke \
+  --function-name qs-claws-approve-plan \
+  --payload '{"plan_id": "plan-abc12345", "approver_principal": "irb-reviewer-001"}' \
+  --cli-binary-format raw-in-base64-out /tmp/out.json && cat /tmp/out.json
+```
+
+The approver must be in the `CLAWS_IRB_APPROVERS` Lambda environment variable (comma-separated
+list of principal IDs). Self-approval (plan owner approving their own plan) returns an error.
+
+On success, the plan status changes to `"ready"` and the approver is recorded in the plan
+item. An `claws.irb / PlanApproved` event is emitted to EventBridge for audit trail.
+
+### Configuring the approver allowlist
+
+Set `CLAWS_IRB_APPROVERS` as a Lambda environment variable in `ClawsToolsStack`:
+
+```python
+# In infra/cdk/stacks/tools_stack.py
+approve_fn.add_environment("CLAWS_IRB_APPROVERS", "irb-reviewer-001,irb-director-002")
+```
+
+Or pass it as a CDK context variable:
+
+```bash
+cdk deploy --context irb_approvers="irb-reviewer-001,irb-director-002"
+```
+
+---
+
+## Compliance configuration
+
+For FERPA, HIPAA, and other regulated environments, see [compliance.md](compliance.md)
+for the full guide including:
+
+- Enabling the FERPA Guardrail preset
+- Deploying Cedar policy templates for restricted data access
+- Running the compliance audit export
+- Pre-deployment compliance checklist

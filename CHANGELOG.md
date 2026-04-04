@@ -7,6 +7,45 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-04-03
+
+### Added
+- **IRB approval workflow:** `plan` accepts `requires_irb: true` flag; sets `status: pending_approval` instead of `ready`; `excavate` blocks any plan with non-`ready` status with an actionable `pending_approval` message including the `plan_id`
+- **`approve_plan` internal Lambda:** Receives `plan_id` and `approver_principal`; validates approver is in `CLAWS_IRB_APPROVERS` env var allowlist; blocks self-approval; sets `status: ready` in DynamoDB; emits `claws.irb / PlanApproved` EventBridge event
+- **`plan.approve` Cedar action:** `irb_approver` role has explicit `permit(Action::"plan.approve")` in `policies/templates/phi-approved.cedar`; non-approvers cannot fire approve_plan
+- **FERPA Guardrail preset:** `guardrails/ferpa/ferpa_guardrail.json`; denied topics: `student-pii-export`, `ferpa-evasion`, `grade-disclosure`, `directory-waiver-bypass`, `education-records-bulk`; regex patterns: SSN (`\b\d{3}-\d{2}-\d{4}\b`) and student ID (`[Ss][Tt][Uu][Dd]-\d{6,9}`) with BLOCK action; deploy with CDK context `enable_ferpa_guardrail: true`
+- **Four Cedar policy templates** in `policies/templates/`: `read-only.cedar` (no excavate/export, metadata only), `no-pii-export.cedar` (forbids export when data_classification includes pii), `approved-domains-only.cedar` (locks principal to a pre-approved domain list), `phi-approved.cedar` (PHI data: clearance >= 3, IRB approval required, 3-row probe limit, HITL token required for excavate)
+- **`audit_export` internal Lambda:** Scans CloudWatch Logs for audit records in a date range; writes one NDJSON file per day per tool to `s3://claws-runs-{account}/audit-exports/`; fields include `principal`, `tool`, `inputs_hash` (SHA-256), `outputs_hash` (SHA-256), `cost_usd`, `guardrail_trace`, `timestamp` — no raw PII in the output
+- 25 new tests: IRB plan status, approve_plan handler (allowlist, self-approval block, EventBridge emit), FERPA guardrail config validation, Cedar template policy checks
+
+## [0.10.0] - 2026-04-03
+
+### Added
+- **Source registry integration:** `discover` domain `"registry"` queries the `qs-data-source-registry` DynamoDB table (from quick-suite-data v0.6.0); sources registered via `register-source` Lambda in the Data stack appear as discoverable clAWS sources; SSM parameter `/quick-suite/data/source-registry-arn` is read by CDK to wire the IAM grant
+- **Catalog-aware `discover`:** When `scope.domains` includes `"registry"`, `discover` returns sources from the cross-stack registry alongside Glue and S3 sources; `source_id` format for registry sources: `registry:{source_type}:{source_name}`
+- **`audit_export` Lambda (initial):** Included in `ClawsStorageStack`; CloudWatch Logs source, NDJSON output to S3 (full SHA-256-hashed field set added in v0.11.0)
+- 8 new tests for registry discover path and cross-stack source resolution
+
+## [0.9.0] - 2026-04-03
+
+### Added
+- **`team_plans` tool Lambda:** Lists all plans for a given `team_id`; returns id, status, objective summary, created_by, created_at, shared_with; read-only; Cedar action `claws.team_plans`
+- **`share_plan` tool Lambda:** Plan owner adds or removes principals from `shared_with` list; non-owners receive 403; Cedar action `claws.share_plan`; `shared_with` list stored on plan DynamoDB item
+- `excavate` shared-plan support: principals in `shared_with` can execute a plan they do not own; ownership check relaxed to `principal == owner OR principal in shared_with`
+- `team_plans` and `share_plan` registered as AgentCore Gateway Lambda targets in `ClawsToolsStack`
+- 12 new tests: team_plans listing, share_plan grant/revoke, excavate shared-plan access, non-owner 403
+
+## [0.8.0] - 2026-04-03
+
+### Added
+- **Plan ownership fields:** `plan` stores `team_id` (from request), `created_by` (from principal), `status` (always `ready` in v0.8.0; `pending_approval` added in v0.11.0) on the DynamoDB plan item
+- **PII scan on probe samples:** `probe` runs `ApplyGuardrail` on all sample rows before returning; returns `status: blocked` (no samples returned) if any sample triggers the PII/PHI Guardrail config; previously only the base config was applied, not the data-specific scan
+- **`excavate` ownership enforcement:** `excavate` loads the plan from DynamoDB and checks `principal == plan.created_by`; returns 403 if the caller is not the plan owner (or in `shared_with`, added v0.9.0)
+- **`merge` refine operation:** `{"op": "merge", "source_run_id": "run-abc"}` merges two result sets on a configurable key; deduplicates on merge key; used by feed watches to accumulate results across scheduled runs
+- **Feed watch type:** `watch` accepts `watch_type: "feed"` which appends new excavation results to a running S3 file rather than overwriting; uses `merge` refine operation internally
+- **Export append/overwrite mode:** `export` accepts `mode: "append"` for S3 destinations; appends NDJSON lines to the destination key rather than replacing the file; provenance file updated with merged row count
+- 15 new tests: plan ownership enforcement, PII probe scan, merge operation, feed watch behavior, export append mode
+
 ## [0.7.0] - 2026-04-02
 
 ### Added
@@ -106,7 +145,11 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 - Architecture, safety model, and Quick Suite integration design docs
 - Example workflows: genomics excavation, log analysis, document mining
 
-[Unreleased]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/scttfrdmn/quick-suite-claws/compare/v0.5.0...v0.6.0
