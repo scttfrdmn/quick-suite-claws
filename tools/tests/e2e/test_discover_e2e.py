@@ -6,7 +6,8 @@ and error handling without requiring any particular data to be present.
 """
 
 import pytest
-from tools.tests.e2e.conftest import invoke, _GLUE_DB, _GLUE_TABLE, _E2E_SOURCE_ID
+
+from tools.tests.e2e.conftest import invoke
 
 pytestmark = pytest.mark.e2e
 

@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from tools.shared import store_plan, store_watch
+from tools.shared import store_watch
 from tools.watches.handler import handler
 
 

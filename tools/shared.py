@@ -384,7 +384,6 @@ def list_watches(
         values[":tid"] = team_id_filter
 
     if filter_parts:
-        from boto3.dynamodb.conditions import Attr  # noqa: PLC0415
         filter_expr = " AND ".join(filter_parts)
         resp = table.scan(
             FilterExpression=filter_expr,

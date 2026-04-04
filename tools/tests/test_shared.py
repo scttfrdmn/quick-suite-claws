@@ -92,7 +92,6 @@ class TestAuditLogMetrics:
 class TestCallRouter:
     def _fake_urlopen(self, responses):
         """Build a context-manager mock that yields successive byte responses."""
-        import io as _io
 
         class _CM:
             def __init__(self, resp_bytes):

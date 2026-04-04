@@ -25,6 +25,7 @@ from tools.shared import (
     success,
 )
 
+
 def _infer_schema(rows: list[dict]) -> list[dict]:
     """Infer column schema from first result row. Returns [] if rows is empty."""
     if not rows:

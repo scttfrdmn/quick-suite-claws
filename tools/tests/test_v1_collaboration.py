@@ -20,9 +20,9 @@ from tools.discover.handler import handler as discover_handler
 from tools.excavate.handler import handler as excavate_handler
 from tools.plan.handler import handler as plan_handler
 from tools.share_plan.handler import handler as share_plan_handler
+from tools.shared import cache_schema, store_plan, store_watch
 from tools.team_plans.handler import handler as team_plans_handler
 from tools.watches.handler import handler as watches_handler
-from tools.shared import cache_schema, store_plan, store_watch
 
 SAMPLE_QUERY = "SELECT gene, chromosome FROM genomics.variants LIMIT 10"
 SAMPLE_SCHEMA = {

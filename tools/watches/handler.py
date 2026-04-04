@@ -3,7 +3,7 @@
 import json
 from typing import Any
 
-from tools.shared import audit_log, error, list_watches, load_plan, success
+from tools.shared import audit_log, error, list_watches, success
 
 
 def handler(event: dict, context: Any) -> dict:

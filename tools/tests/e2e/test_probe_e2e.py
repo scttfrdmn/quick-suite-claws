@@ -6,7 +6,8 @@ is session-scoped so schema caching only happens once per test run.
 """
 
 import pytest
-from tools.tests.e2e.conftest import invoke, _E2E_SOURCE_ID
+
+from tools.tests.e2e.conftest import _E2E_SOURCE_ID, invoke
 
 pytestmark = pytest.mark.e2e
 

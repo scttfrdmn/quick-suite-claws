@@ -17,7 +17,6 @@ Stack assumptions (deploy infra/cdk first if not done):
 import csv
 import io
 import json
-import time
 
 import boto3
 import pytest

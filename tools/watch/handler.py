@@ -14,7 +14,7 @@ from typing import Any
 
 import boto3
 
-from tools.errors import NotFoundError, ValidationError
+from tools.errors import NotFoundError
 from tools.shared import (
     audit_log,
     delete_watch,

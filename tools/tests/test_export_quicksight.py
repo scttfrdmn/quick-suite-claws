@@ -1,9 +1,7 @@
 """Tests for the quicksight:// export destination in tools/export/handler.py."""
 
 import json
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 import tools.export.handler as _mod
 
@@ -120,7 +118,7 @@ class TestExportToQuickSight:
         fake_s3, fake_qs, fake_table = _make_mocks(monkeypatch)
 
         rows = [{"k": "v"}]
-        result = _mod._export_to_quicksight(
+        _result = _mod._export_to_quicksight(
             "quicksight://my-analysis-2024", rows, "run-n", "export-n"
         )
 

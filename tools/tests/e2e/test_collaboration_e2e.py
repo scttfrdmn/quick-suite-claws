@@ -6,7 +6,8 @@ a plan with another principal.
 """
 
 import pytest
-from tools.tests.e2e.conftest import invoke, _E2E_TEAM_ID, _E2E_SOURCE_ID
+
+from tools.tests.e2e.conftest import _E2E_TEAM_ID, invoke
 
 pytestmark = pytest.mark.e2e
 

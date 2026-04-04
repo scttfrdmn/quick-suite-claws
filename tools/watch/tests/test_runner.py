@@ -2,9 +2,8 @@
 
 import json
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import boto3
 import pytest
 
 from tools.shared import load_watch, store_plan, store_watch

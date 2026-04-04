@@ -8,15 +8,13 @@ Covers:
 
 import json
 import time
+from unittest.mock import patch
 
 import boto3
-import pytest
 
 from tools.export.handler import handler as export_handler
 from tools.shared import diff_results, new_run_id, store_plan, store_result, store_watch
 from tools.watch.runner import handler as runner_handler
-from unittest.mock import patch
-
 
 # ---------------------------------------------------------------------------
 # Issue #45 — diff_results utility

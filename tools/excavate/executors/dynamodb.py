@@ -7,7 +7,6 @@ Uses execute_statement (PartiQL) — read-only by design.
 Responses are unmarshalled from DynamoDB AttributeValue format.
 """
 
-import json
 
 import boto3
 from boto3.dynamodb.types import TypeDeserializer

@@ -5,7 +5,8 @@ Both tools operate on the run_id from excavate_result.
 """
 
 import pytest
-from tools.tests.e2e.conftest import invoke, _E2E_SOURCE_ID
+
+from tools.tests.e2e.conftest import invoke
 
 pytestmark = pytest.mark.e2e
 

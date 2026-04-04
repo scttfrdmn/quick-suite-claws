@@ -14,7 +14,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-from tools.excavate.handler import EXECUTORS
+from tools.excavate.handler import EXECUTORS, _infer_schema
 from tools.shared import (
     RUNS_BUCKET,
     audit_log,
@@ -25,7 +25,6 @@ from tools.shared import (
     store_result_metadata,
     update_watch,
 )
-from tools.excavate.handler import _infer_schema
 
 # Maximum consecutive executor errors before a watch is paused
 MAX_CONSECUTIVE_ERRORS = int(os.environ.get("CLAWS_WATCH_MAX_ERRORS", "3"))
@@ -274,8 +273,9 @@ def _fire_notification(target: dict, run_id: str, rows: list[dict], watch_id: st
 
     try:
         if target_type == "s3":
-            import boto3
             import json as _json
+
+            import boto3
             s3 = boto3.client("s3")
             parts = uri.replace("s3://", "").split("/", 1)
             bucket, key = parts[0], parts[1] if len(parts) > 1 else f"watch-{watch_id}/{run_id}.json"

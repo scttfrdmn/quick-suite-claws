@@ -8,16 +8,14 @@ Covers:
 
 import json
 import time
+from unittest.mock import patch
 
 import boto3
-import pytest
 
 from tools.export.handler import handler as export_handler
 from tools.refine.handler import handler as refine_handler
 from tools.shared import new_run_id, store_plan, store_result, store_watch
 from tools.watch.runner import handler as runner_handler
-from unittest.mock import patch
-
 
 # ---------------------------------------------------------------------------
 # Issue #41 — merge refine operation

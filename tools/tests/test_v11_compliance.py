@@ -9,9 +9,7 @@ Covers:
 - Audit export NDJSON format and field presence (issue #59)
 """
 
-import hashlib
 import json
-import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -19,7 +17,8 @@ import boto3
 import pytest
 
 from tools.approve_plan.handler import handler as approve_plan_handler
-from tools.audit_export.handler import _sanitise_record, _sha256_of, handler as audit_export_handler
+from tools.audit_export.handler import _sanitise_record, _sha256_of
+from tools.audit_export.handler import handler as audit_export_handler
 from tools.excavate.handler import handler as excavate_handler
 from tools.shared import cache_schema, store_plan
 

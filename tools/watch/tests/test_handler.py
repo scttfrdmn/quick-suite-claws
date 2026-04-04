@@ -1,7 +1,7 @@
 """Handler tests for claws.watch (create / update / delete)."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
