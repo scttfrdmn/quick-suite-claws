@@ -27,6 +27,9 @@ from tools.shared import (
     update_watch,
 )
 
+# Valid action_routing destination types
+_ACTION_ROUTING_TYPES = frozenset({"sns", "eventbridge", "bedrock_agent"})
+
 # EventBridge Scheduler group all watch schedules live in
 SCHEDULE_GROUP = "claws-watches"
 WATCH_RUNNER_ARN = os.environ.get("CLAWS_WATCH_RUNNER_ARN", "")
@@ -151,6 +154,28 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
         if not semantic_match.get("lab_profile_ssm_key"):
             return error("semantic_match.lab_profile_ssm_key is required for new_award watches")
 
+    # compliance watches require a ruleset URI
+    compliance_mode = bool(body.get("compliance_mode"))
+    compliance_ruleset_uri = body.get("compliance_ruleset_uri", "")
+    if compliance_mode and not compliance_ruleset_uri:
+        return error("compliance_ruleset_uri is required when compliance_mode is true")
+
+    # action_routing: validate destination_type if provided
+    action_routing = body.get("action_routing")
+    if action_routing is not None:
+        if not isinstance(action_routing, dict):
+            return error("action_routing must be an object")
+        ar_type = action_routing.get("destination_type", "")
+        if ar_type not in _ACTION_ROUTING_TYPES:
+            return error(
+                f"action_routing.destination_type must be one of: {sorted(_ACTION_ROUTING_TYPES)}"
+            )
+        if not action_routing.get("destination_arn"):
+            return error("action_routing.destination_arn is required")
+
+    # accreditation_config_uri: optional, no deep validation at create time
+    accreditation_config_uri = body.get("accreditation_config_uri", "")
+
     spec = {
         "plan_id": plan_id,
         "source_id": plan.get("source_id", ""),   # denormalized for watches listing
@@ -172,6 +197,13 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
         spec["feed_result_uri"] = None  # filled by runner after first run
     if watch_type == "new_award" and semantic_match:
         spec["semantic_match"] = semantic_match
+    if compliance_mode:
+        spec["compliance_mode"] = True
+        spec["compliance_ruleset_uri"] = compliance_ruleset_uri
+    if accreditation_config_uri:
+        spec["accreditation_config_uri"] = accreditation_config_uri
+    if action_routing:
+        spec["action_routing"] = action_routing
     # Denormalize team_id from plan at watch creation so watches can be filtered by team
     if plan.get("team_id"):
         spec["team_id"] = plan["team_id"]
@@ -205,6 +237,10 @@ def _update(body: dict, principal: str, request_id: str) -> dict:
         updates["notification_target"] = body["notification_target"]
     if "status" in body:
         updates["status"] = body["status"]
+    if "action_routing" in body:
+        updates["action_routing"] = body["action_routing"]
+    if "accreditation_config_uri" in body:
+        updates["accreditation_config_uri"] = body["accreditation_config_uri"]
 
     if updates:
         update_watch(watch_id, updates)

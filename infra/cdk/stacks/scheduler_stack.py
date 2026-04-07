@@ -68,6 +68,13 @@ class ClawsSchedulerStack(cdk.Stack):
             resources=["*"],
         ))
 
+        # SNS publish — action_routing watch type delivers drafted responses to SNS topics
+        runner_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["sns:Publish"],
+            resources=["*"],
+        ))
+
         # SSM Parameter Store read — new_award watch fetches lab profile from SSM
         runner_role.add_to_policy(iam.PolicyStatement(
             effect=iam.Effect.ALLOW,

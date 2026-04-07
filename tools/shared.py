@@ -17,6 +17,14 @@ _s3 = None
 _dynamodb = None
 _bedrock = None
 _cloudwatch = None
+_ssm = None
+
+
+def ssm_client() -> Any:
+    global _ssm
+    if _ssm is None:
+        _ssm = boto3.client("ssm")
+    return _ssm
 
 
 def s3_client() -> Any:
@@ -586,6 +594,38 @@ def diff_results(uri_a: str, uri_b: str, key_column: str) -> dict:
         "changed_count": len(changed),
         "unchanged_count": unchanged_count,
     }
+
+
+# --- Config loading from URI ---
+
+def load_config_from_uri(uri: str) -> dict:
+    """Load a JSON config dict from an S3 or SSM URI.
+
+    Supported schemes:
+    - ``s3://bucket/key`` — fetches the object body from S3 and JSON-decodes it
+    - ``ssm:/param/path`` — reads the SSM parameter value and JSON-decodes it
+
+    Raises:
+        ValueError: if the URI scheme is not recognised or the content is not valid JSON
+    """
+    if uri.startswith("s3://"):
+        parts = uri[5:].split("/", 1)
+        if len(parts) != 2 or not parts[1]:
+            raise ValueError(f"Invalid S3 URI: {uri!r}")
+        bucket, key = parts[0], parts[1]
+        obj = s3_client().get_object(Bucket=bucket, Key=key)
+        body = obj["Body"].read().decode("utf-8")
+        return json.loads(body)
+
+    if uri.startswith("ssm:/"):
+        param_name = uri[4:]  # strip "ssm:" leaving "/param/path"
+        resp = ssm_client().get_parameter(Name=param_name)
+        value = resp["Parameter"]["Value"]
+        return json.loads(value)
+
+    raise ValueError(
+        f"Unsupported config URI scheme: {uri!r}. Use s3://bucket/key or ssm:/param/path"
+    )
 
 
 # --- Lambda response helpers ---

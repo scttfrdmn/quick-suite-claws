@@ -216,3 +216,35 @@ forbid(
 when {
   resource.created_by == principal.id
 };
+
+// ============================================================
+// CLAWS.ACCREDITATION_WATCH — run accreditation evidence ledger
+//
+// Principals with the accreditation_reviewer role may trigger
+// the accreditation gap evaluation path in the watch runner.
+// The resource is the watch item.
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.accreditation_watch",
+  resource
+)
+when {
+  principal.roles.contains("accreditation_reviewer")
+};
+
+// ============================================================
+// CLAWS.COMPLIANCE_WATCH — run compliance surface evaluation
+//
+// Principals with the irb_monitor role may run compliance
+// ruleset evaluation (IRB amendment detection, DUA gap checks).
+// The resource is the watch item.
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.compliance_watch",
+  resource
+)
+when {
+  principal.roles.contains("irb_monitor")
+};
