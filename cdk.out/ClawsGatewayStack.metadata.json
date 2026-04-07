@@ -1,0 +1,318 @@
+{
+  "/ClawsGatewayStack/ClawsGateway": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AWS679f53fac002430cb0da5b7982bd2287": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-discover": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCorediscover"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-discover": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-probe": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCoreprobe"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-probe": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-plan": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCoreplan"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-plan": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-excavate": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCoreexcavate"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-excavate": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-refine": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCorerefine"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-refine": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/AllowAgentCore-export": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AllowAgentCoreexport"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-export": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsGatewayStack/GatewayId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "GatewayId"
+    }
+  ],
+  "/ClawsGatewayStack/GatewayArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "GatewayArn"
+    }
+  ],
+  "/ClawsGatewayStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsGatewayStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsGatewayStack/AgentCoreProviderRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AgentCoreProviderRole7139C89B"
+    }
+  ],
+  "/ClawsGatewayStack/AWS679f53fac002430cb0da5b7982bd2287/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AWS679f53fac002430cb0da5b7982bd22872D164C4C"
+    }
+  ],
+  "/ClawsGatewayStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsGatewayStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsGateway913EA9D8\",\"agentRuntimeId\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsGateway913EA9D8agentRuntimeId4E3E5925"
+    }
+  ],
+  "/ClawsGatewayStack/AgentCoreProviderRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AgentCoreProviderRoleDefaultPolicy59DF001F"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsGateway/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsGateway913EA9D8"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-discover/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointdiscover9565A505"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-probe/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointprobeA7CF53EB"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-plan/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointplan9B25DB31"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-excavate/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointexcavate43BD708F"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-refine/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointrefine2AF9308D"
+    }
+  ],
+  "/ClawsGatewayStack/ClawsEndpoint-export/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsEndpointexport02FC9757"
+    }
+  ]
+}

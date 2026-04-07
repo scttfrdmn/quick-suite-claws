@@ -55,7 +55,7 @@ def cloudwatch_client() -> Any:
     return _cloudwatch
 
 
-def call_router(router_tool: str, prompt: str, max_tokens: int = 2048) -> str | None:
+def call_router(router_tool: str, prompt: str, max_tokens: int = 2048, grounding_mode: str = "default") -> str | None:
     """Invoke the Quick Suite model router for LLM generation.
 
     Reads ROUTER_ENDPOINT, ROUTER_TOKEN_URL, ROUTER_SECRET_ARN from the
@@ -97,11 +97,14 @@ def call_router(router_tool: str, prompt: str, max_tokens: int = 2048) -> str | 
             token = json.loads(resp.read())["access_token"]
 
         # Call the router
-        body = json.dumps({
+        router_body: dict = {
             "prompt": prompt,
             "max_tokens": max_tokens,
             "temperature": 0.0,
-        }).encode()
+        }
+        if grounding_mode and grounding_mode != "default":
+            router_body["grounding_mode"] = grounding_mode
+        body = json.dumps(router_body).encode()
         router_req = urllib.request.Request(
             f"{endpoint.rstrip('/')}/tools/{router_tool}",
             data=body,

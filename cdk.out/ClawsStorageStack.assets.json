@@ -1,0 +1,21 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "467df06ef0d965b4f4f3d4cbf2aef65456282c92878b73ae456e8cd53e3c962a": {
+      "displayName": "ClawsStorageStack Template",
+      "source": {
+        "path": "ClawsStorageStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-west-2-8b08738d": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "467df06ef0d965b4f4f3d4cbf2aef65456282c92878b73ae456e8cd53e3c962a.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

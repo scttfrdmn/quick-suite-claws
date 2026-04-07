@@ -1,0 +1,21 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "e3d4e80cc7a8c9a4b8430f9709bcc02c118277a2806dfd828ba20e2b78b286cc": {
+      "displayName": "ClawsGuardrailsStack Template",
+      "source": {
+        "path": "ClawsGuardrailsStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-west-2-684a04ee": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "e3d4e80cc7a8c9a4b8430f9709bcc02c118277a2806dfd828ba20e2b78b286cc.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

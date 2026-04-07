@@ -1,0 +1,44 @@
+{
+  "/ClawsGuardrailsStack/ClawsBaseGuardrail": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsBaseGuardrail"
+    }
+  ],
+  "/ClawsGuardrailsStack/BaseGuardrailId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BaseGuardrailId"
+    }
+  ],
+  "/ClawsGuardrailsStack/BaseGuardrailArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BaseGuardrailArn"
+    }
+  ],
+  "/ClawsGuardrailsStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsGuardrailsStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsGuardrailsStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsGuardrailsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsBaseGuardrail\",\"GuardrailId\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+    }
+  ]
+}

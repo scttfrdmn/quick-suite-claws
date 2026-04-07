@@ -1,0 +1,224 @@
+{
+  "/ClawsToolsStack/ClawsReadOnlyWorkgroup": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsReadOnlyWorkgroup"
+    }
+  ],
+  "/ClawsToolsStack/discoverFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "discoverFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/probeFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "probeFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/planFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "planFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/excavateFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "excavateFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/refineFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "refineFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/exportFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "exportFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/watchFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "watchFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/watchesFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "watchesFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/team_plansFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "teamplansFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/share_planFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "shareplanFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/approve_planFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "approveplanFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/audit_exportFunctionArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "auditexportFunctionArn"
+    }
+  ],
+  "/ClawsToolsStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsToolsStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsToolsStack/ClawsLambdaRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsLambdaRole32FD0641"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-discover/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsTooldiscover71DCC5A1"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-probe/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolprobe22B5BC56"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-plan/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolplanAE6F0751"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-excavate/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolexcavateEA515722"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-refine/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolrefineF2F997BE"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-export/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolexport988A25E3"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-watch/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolwatchCAAFDF47"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-watches/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolwatches548F3F32"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-team_plans/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolteamplans71276795"
+    }
+  ],
+  "/ClawsToolsStack/ClawsTool-share_plan/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsToolshareplanADCAE7B8"
+    }
+  ],
+  "/ClawsToolsStack/ClawsInternal-approve_plan/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsInternalapproveplanB9FADB00"
+    }
+  ],
+  "/ClawsToolsStack/ClawsInternal-audit_export/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsInternalauditexportD03B939A"
+    }
+  ],
+  "/ClawsToolsStack/ClawsDiscoverArnParam/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsDiscoverArnParamAE1ED986"
+    }
+  ],
+  "/ClawsToolsStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsTooldiscover71DCC5A1\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsTooldiscover71DCC5A1Arn54CD288B"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsToolprobe22B5BC56\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsToolprobe22B5BC56ArnB8C3D24D"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsToolplanAE6F0751\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsToolplanAE6F0751ArnB0939206"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsToolexcavateEA515722\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsToolexcavateEA515722Arn6B493C62"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsToolrefineF2F997BE\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsToolrefineF2F997BEArnDEB504B1"
+    }
+  ],
+  "/ClawsToolsStack/Exports/Output{\"Fn::GetAtt\":[\"ClawsToolexport988A25E3\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttClawsToolexport988A25E3Arn1F571B97"
+    }
+  ],
+  "/ClawsToolsStack/ClawsLambdaRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsLambdaRoleDefaultPolicyCC5C0715"
+    }
+  ]
+}

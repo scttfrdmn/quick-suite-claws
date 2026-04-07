@@ -120,6 +120,194 @@ def _run_new_award_semantic_match(rows: list, cfg: dict) -> list:
     return matches
 
 
+_LITERATURE_MAX_ROWS = 50
+
+
+def _run_literature_watch(watch: dict, rows: list) -> list:
+    """Score paper rows for relevance to a lab research profile.
+
+    Calls Router `summarize` per paper (up to _LITERATURE_MAX_ROWS). Papers meeting
+    or exceeding the similarity threshold are returned with `relevance_type` and
+    `validation_steps` appended. Router failures are non-blocking — warning logged,
+    paper skipped.
+
+    Args:
+        watch: Watch spec dict. Required: semantic_match.lab_profile_ssm_key.
+               Optional: reagent_config_uri, protocol_config_uri.
+        rows: Paper rows from the excavation result.
+
+    Returns:
+        Matching paper rows sorted by relevance descending.
+    """
+    cfg = watch.get("semantic_match", {})
+    ssm_key = cfg.get("lab_profile_ssm_key", "")
+    threshold = float(cfg.get("abstract_similarity_threshold", 0.75))
+
+    try:
+        param = _ssm().get_parameter(Name=ssm_key)
+        lab_abstract = param["Parameter"]["Value"]
+    except Exception as exc:
+        logging.warning(json.dumps({
+            "msg": "literature: lab profile SSM fetch failed",
+            "ssm_key": ssm_key,
+            "error": str(exc),
+        }))
+        return []
+
+    # Load keyword lists from optional config URIs
+    reagent_keywords: list[str] = []
+    if watch.get("reagent_config_uri"):
+        try:
+            reagent_cfg = load_config_from_uri(watch["reagent_config_uri"])
+            reagent_keywords = [str(k).lower() for k in (reagent_cfg if isinstance(reagent_cfg, list) else [])]
+        except Exception as exc:
+            logging.warning(json.dumps({"msg": "literature: reagent_config_uri load failed", "error": str(exc)}))
+
+    protocol_keywords: list[str] = []
+    if watch.get("protocol_config_uri"):
+        try:
+            protocol_cfg = load_config_from_uri(watch["protocol_config_uri"])
+            protocol_keywords = [str(k).lower() for k in (protocol_cfg if isinstance(protocol_cfg, list) else [])]
+        except Exception as exc:
+            logging.warning(json.dumps({"msg": "literature: protocol_config_uri load failed", "error": str(exc)}))
+
+    matches = []
+    for row in rows[:_LITERATURE_MAX_ROWS]:
+        paper_abstract = str(
+            row.get("abstract_text")
+            or row.get("abstract")
+            or row.get("summary")
+            or ""
+        )
+        paper_title = str(row.get("title", ""))
+        paper_text = (paper_title + " " + paper_abstract).lower()
+
+        prompt = (
+            f"Rate the semantic similarity between the following lab research profile and paper "
+            f"on a scale of 0.0 to 1.0. Reply with ONLY the numeric score.\n\n"
+            f"LAB PROFILE:\n{lab_abstract[:300]}\n\nPAPER:\n{paper_abstract[:300]}"
+        )
+        try:
+            response_text = call_router("summarize", prompt, max_tokens=10)
+            if response_text is None:
+                raise ValueError("Router not configured or returned None")
+            score = float(response_text.strip().split()[0])
+        except Exception as exc:
+            logging.warning(json.dumps({
+                "msg": "literature: Router similarity scoring failed; skipping paper",
+                "error": str(exc),
+            }))
+            continue
+
+        if score < threshold:
+            continue
+
+        # Determine relevance type and validation steps
+        if reagent_keywords and any(kw in paper_text for kw in reagent_keywords):
+            relevance_type = "reagent"
+            validation_steps = ["confirm_antibody_catalog_number"]
+        elif protocol_keywords and any(kw in paper_text for kw in protocol_keywords):
+            relevance_type = "protocol"
+            validation_steps = ["replicate_protocol"]
+        else:
+            relevance_type = "methodology"
+            validation_steps = ["cite_and_review"]
+
+        matches.append({
+            **row,
+            "_relevance_score": score,
+            "relevance_type": relevance_type,
+            "validation_steps": validation_steps,
+        })
+
+    matches.sort(key=lambda r: r.get("_relevance_score", 0.0), reverse=True)
+    return matches
+
+
+_CROSS_DISCIPLINE_MAX_ROWS = 50
+
+
+def _run_cross_discipline_watch(watch: dict, rows: list) -> list:
+    """Detect papers from adjacent fields addressing open problems in the primary field.
+
+    Loads open problems from `open_problems_uri`, then calls Router `research`
+    per paper (with grounding_mode=strict) to assess cross-field relevance.
+    Router failures are non-blocking. Returns qualifying papers with gap metadata.
+
+    Args:
+        watch: Watch spec. Required keys: open_problems_uri, primary_field.
+               Optional: field_distance (default 0.5), citations_in_primary_field (default 5).
+        rows: Paper rows from excavation.
+
+    Returns:
+        List of qualifying paper dicts with {gap_id, source_field, cross_field_score,
+        gap_statement} appended.
+    """
+    open_problems_uri = watch.get("open_problems_uri", "")
+    primary_field = watch.get("primary_field", "")
+    field_distance = float(watch.get("field_distance", 0.5))
+    max_citations_in_field = int(watch.get("citations_in_primary_field", 5))
+
+    try:
+        gap_list = load_config_from_uri(open_problems_uri)
+        if not isinstance(gap_list, list):
+            gap_list = []
+    except Exception as exc:
+        logging.warning(json.dumps({
+            "msg": "cross_discipline: open_problems_uri load failed",
+            "uri": open_problems_uri,
+            "error": str(exc),
+        }))
+        return []
+
+    results = []
+    for row in rows[:_CROSS_DISCIPLINE_MAX_ROWS]:
+        paper_title = str(row.get("title", ""))
+        paper_abstract = str(
+            row.get("abstract_text") or row.get("abstract") or row.get("summary") or ""
+        )
+        for i, gap in enumerate(gap_list):
+            gap_statement = gap.get("gap_statement", "") if isinstance(gap, dict) else str(gap)
+            prompt = (
+                f"Does this paper from a field OTHER than '{primary_field}' address the gap: "
+                f"'{gap_statement[:200]}'?\n\n"
+                f"Paper title: {paper_title[:200]}\n"
+                f"Abstract: {paper_abstract[:400]}\n\n"
+                f"Reply with a JSON object: "
+                '{"cross_field_score": 0.0-1.0, "source_field": "field name", '
+                '"citations_in_primary_field": estimated_int}'
+            )
+            try:
+                response_text = call_router("research", prompt, max_tokens=150, grounding_mode="strict")
+                if response_text is None:
+                    raise ValueError("Router not configured or returned None")
+                import re as _re
+                m = _re.search(r"\{.*\}", response_text, _re.DOTALL)
+                if not m:
+                    raise ValueError("No JSON in Router response")
+                meta = json.loads(m.group())
+                cross_field_score = float(meta.get("cross_field_score", 0.0))
+                source_field = str(meta.get("source_field", ""))
+                citations = int(meta.get("citations_in_primary_field", 999))
+            except Exception as exc:
+                logging.warning(json.dumps({
+                    "msg": "cross_discipline: Router scoring failed; skipping",
+                    "error": str(exc),
+                }))
+                continue
+
+            if cross_field_score >= field_distance and citations <= max_citations_in_field:
+                results.append({
+                    **row,
+                    "gap_id": f"gap-{i}",
+                    "gap_statement": gap_statement,
+                    "source_field": source_field,
+                    "cross_field_score": cross_field_score,
+                })
+
+    return results
+
+
 def _run_action_routing(
     watch: dict,
     triggered_rows: list,
@@ -464,15 +652,36 @@ def handler(event: dict, context: Any) -> dict:
 
     # New-award semantic match: score rows by similarity to lab profile
     new_award_matches: list = []
-    if watch.get("type") == "new_award":
+    if watch_type == "new_award":
         semantic_cfg = watch.get("semantic_match", {})
         new_award_matches = _run_new_award_semantic_match(rows, semantic_cfg)
         # Override triggered: only fire if there are semantically matching awards
         triggered = bool(new_award_matches)
         triggered_at = now if triggered else watch.get("last_triggered_at")
 
+    # Literature watch: score papers for lab relevance
+    literature_matches: list = []
+    if watch_type == "literature":
+        literature_matches = _run_literature_watch(watch, rows)
+        triggered = bool(literature_matches)
+        triggered_at = now if triggered else watch.get("last_triggered_at")
+
+    # Cross-discipline signal watch: detect adjacent-field papers addressing open problems
+    cross_discipline_matches: list = []
+    if watch_type == "cross_discipline":
+        cross_discipline_matches = _run_cross_discipline_watch(watch, rows)
+        triggered = bool(cross_discipline_matches)
+        triggered_at = now if triggered else watch.get("last_triggered_at")
+
     if triggered and watch.get("notification_target"):
-        notify_rows = new_award_matches if watch.get("type") == "new_award" else rows
+        if watch_type == "new_award":
+            notify_rows = new_award_matches
+        elif watch_type == "literature":
+            notify_rows = literature_matches
+        elif watch_type == "cross_discipline":
+            notify_rows = cross_discipline_matches
+        else:
+            notify_rows = rows
         _fire_notification(watch["notification_target"], run_id, notify_rows, watch_id)
 
     # Action routing: draft response via Router and dispatch to configured destination
@@ -511,6 +720,10 @@ def handler(event: dict, context: Any) -> dict:
         audit_out["diff_summary"] = diff_summary
     if new_award_matches:
         audit_out["new_award_matches"] = len(new_award_matches)
+    if literature_matches:
+        audit_out["literature_matches"] = len(literature_matches)
+    if cross_discipline_matches:
+        audit_out["cross_discipline_matches"] = len(cross_discipline_matches)
     if accreditation_gaps:
         audit_out["accreditation_gaps"] = len(accreditation_gaps)
     if compliance_gaps:
@@ -528,6 +741,10 @@ def handler(event: dict, context: Any) -> dict:
         result_out["diff_summary"] = diff_summary
     if new_award_matches:
         result_out["new_award_matches"] = len(new_award_matches)
+    if literature_matches:
+        result_out["literature_matches"] = literature_matches
+    if cross_discipline_matches:
+        result_out["cross_discipline_matches"] = cross_discipline_matches
     if accreditation_gaps:
         result_out["accreditation_gaps"] = accreditation_gaps
     if compliance_gaps:

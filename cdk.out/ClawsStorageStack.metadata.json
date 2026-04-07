@@ -1,0 +1,158 @@
+{
+  "/ClawsStorageStack/PlansTable": [
+    {
+      "type": "aws:cdk:hasPhysicalName",
+      "data": {
+        "Ref": "PlansTableD3E3A972"
+      }
+    }
+  ],
+  "/ClawsStorageStack/SchemasTable": [
+    {
+      "type": "aws:cdk:hasPhysicalName",
+      "data": {
+        "Ref": "SchemasTable1DC069C3"
+      }
+    }
+  ],
+  "/ClawsStorageStack/WatchesTable": [
+    {
+      "type": "aws:cdk:hasPhysicalName",
+      "data": {
+        "Ref": "WatchesTable589BE523"
+      }
+    }
+  ],
+  "/ClawsStorageStack/RunsBucketName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "RunsBucketName"
+    }
+  ],
+  "/ClawsStorageStack/PlansTableName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PlansTableName"
+    }
+  ],
+  "/ClawsStorageStack/SchemasTableName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SchemasTableName"
+    }
+  ],
+  "/ClawsStorageStack/WatchesTableName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchesTableName"
+    }
+  ],
+  "/ClawsStorageStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsStorageStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsStorageStack/RunsBucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "RunsBucketF47F9FB8"
+    }
+  ],
+  "/ClawsStorageStack/AthenaResultsBucket/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AthenaResultsBucket879938FA"
+    }
+  ],
+  "/ClawsStorageStack/PlansTable/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PlansTableD3E3A972"
+    }
+  ],
+  "/ClawsStorageStack/SchemasTable/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SchemasTable1DC069C3"
+    }
+  ],
+  "/ClawsStorageStack/WatchesTable/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchesTable589BE523"
+    }
+  ],
+  "/ClawsStorageStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Ref\":\"AthenaResultsBucket879938FA\"}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Fn::GetAtt\":[\"RunsBucketF47F9FB8\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttRunsBucketF47F9FB8ArnB3FFCFB8"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Fn::GetAtt\":[\"AthenaResultsBucket879938FA\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttAthenaResultsBucket879938FAArn609FA1B4"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Fn::GetAtt\":[\"PlansTableD3E3A972\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttPlansTableD3E3A972ArnE313F4D2"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Fn::GetAtt\":[\"SchemasTable1DC069C3\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttSchemasTable1DC069C3Arn578A43A8"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Fn::GetAtt\":[\"WatchesTable589BE523\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttWatchesTable589BE523ArnB0E68C5E"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Ref\":\"RunsBucketF47F9FB8\"}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Ref\":\"PlansTableD3E3A972\"}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputRefPlansTableD3E3A972E66ED78C"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Ref\":\"SchemasTable1DC069C3\"}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputRefSchemasTable1DC069C3999C5867"
+    }
+  ],
+  "/ClawsStorageStack/Exports/Output{\"Ref\":\"WatchesTable589BE523\"}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputRefWatchesTable589BE52383440797"
+    }
+  ]
+}

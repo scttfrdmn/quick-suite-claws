@@ -1,0 +1,1385 @@
+{
+ "Resources": {
+  "ClawsReadOnlyWorkgroup": {
+   "Type": "AWS::Athena::WorkGroup",
+   "Properties": {
+    "Name": "claws-readonly",
+    "WorkGroupConfiguration": {
+     "BytesScannedCutoffPerQuery": 5000000000,
+     "EnforceWorkGroupConfiguration": true,
+     "PublishCloudWatchMetricsEnabled": true,
+     "ResultConfiguration": {
+      "EncryptionConfiguration": {
+       "EncryptionOption": "SSE_S3"
+      },
+      "OutputLocation": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsReadOnlyWorkgroup"
+   }
+  },
+  "ClawsLambdaRole32FD0641": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsLambdaRole/Resource"
+   }
+  },
+  "ClawsLambdaRoleDefaultPolicyCC5C0715": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttRunsBucketF47F9FB8ArnB3FFCFB8"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttRunsBucketF47F9FB8ArnB3FFCFB8"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "s3:GetObject*",
+        "s3:GetBucket*",
+        "s3:List*",
+        "s3:DeleteObject*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging",
+        "s3:Abort*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttAthenaResultsBucket879938FAArn609FA1B4"
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttAthenaResultsBucket879938FAArn609FA1B4"
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttPlansTableD3E3A972ArnE313F4D2"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttPlansTableD3E3A972ArnE313F4D2"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttSchemasTable1DC069C3Arn578A43A8"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttSchemasTable1DC069C3Arn578A43A8"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttWatchesTable589BE523ArnB0E68C5E"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::ImportValue": "ClawsStorageStack:ExportsOutputFnGetAttWatchesTable589BE523ArnB0E68C5E"
+        }
+       ]
+      },
+      {
+       "Action": [
+        "glue:GetDatabases",
+        "glue:GetDatabase",
+        "glue:GetTables",
+        "glue:GetTable"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "athena:StartQueryExecution",
+        "athena:StopQueryExecution",
+        "athena:GetQueryExecution",
+        "athena:GetQueryResults"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:ApplyGuardrail"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "cloudwatch:PutMetricData",
+       "Condition": {
+        "StringEquals": {
+         "cloudwatch:namespace": "claws"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "events:PutEvents",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "quicksight:CreateDataSource",
+        "quicksight:CreateDataSet"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Condition": {
+        "StringLike": {
+         "secretsmanager:SecretId": "*claws-router*"
+        }
+       },
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents",
+        "logs:GetLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "s3:PutObject",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "scheduler:CreateSchedule",
+        "scheduler:UpdateSchedule",
+        "scheduler:DeleteSchedule",
+        "scheduler:GetSchedule"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:scheduler:us-west-2:",
+          {
+           "Ref": "AWS::AccountId"
+          },
+          ":schedule/claws-watches/*"
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "iam:PassRole",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::ImportValue": "ClawsSchedulerStack:ExportsOutputFnGetAttSchedulerInvokeRoleE2A7D616Arn9F695C61"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "Roles": [
+     {
+      "Ref": "ClawsLambdaRole32FD0641"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "ClawsTooldiscover71DCC5A1": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-discover",
+    "Handler": "tools.discover.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-discover/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolprobe22B5BC56": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-probe",
+    "Handler": "tools.probe.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-probe/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolplanAE6F0751": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "ROUTER_ENDPOINT": "",
+      "ROUTER_TOKEN_URL": "",
+      "ROUTER_SECRET_ARN": ""
+     }
+    },
+    "FunctionName": "claws-plan",
+    "Handler": "tools.plan.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-plan/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolexcavateEA515722": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-excavate",
+    "Handler": "tools.excavate.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-excavate/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolrefineF2F997BE": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "ROUTER_ENDPOINT": "",
+      "ROUTER_TOKEN_URL": "",
+      "ROUTER_SECRET_ARN": ""
+     }
+    },
+    "FunctionName": "claws-refine",
+    "Handler": "tools.refine.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-refine/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolexport988A25E3": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "QUICKSIGHT_ACCOUNT_ID": "",
+      "CLAWS_LOOKUP_TABLE": ""
+     }
+    },
+    "FunctionName": "claws-export",
+    "Handler": "tools.export.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-export/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolwatchCAAFDF47": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "CLAWS_WATCH_RUNNER_ARN": {
+       "Fn::ImportValue": "ClawsSchedulerStack:ExportsOutputFnGetAttWatchRunner9718E6B3Arn2E3BFD52"
+      },
+      "CLAWS_WATCH_RUNNER_ROLE_ARN": {
+       "Fn::ImportValue": "ClawsSchedulerStack:ExportsOutputFnGetAttSchedulerInvokeRoleE2A7D616Arn9F695C61"
+      }
+     }
+    },
+    "FunctionName": "claws-watch",
+    "Handler": "tools.watch.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-watch/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolwatches548F3F32": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-watches",
+    "Handler": "tools.watches.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-watches/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolteamplans71276795": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-team_plans",
+    "Handler": "tools.team_plans.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-team_plans/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsToolshareplanADCAE7B8": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws"
+     }
+    },
+    "FunctionName": "claws-share_plan",
+    "Handler": "tools.share_plan.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 60
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsTool-share_plan/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsInternalapproveplanB9FADB00": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "CLAWS_IRB_APPROVERS": "",
+      "CLAWS_EVENTS_BUS": "default",
+      "CLAWS_AUDIT_LOG_GROUP": "/aws/lambda/claws-audit"
+     }
+    },
+    "FunctionName": "claws-approve-plan",
+    "Handler": "tools.approve_plan.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsInternal-approve_plan/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsInternalauditexportD03B939A": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CLAWS_RUNS_BUCKET": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+      },
+      "CLAWS_PLANS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+      },
+      "CLAWS_SCHEMAS_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+      },
+      "CLAWS_WATCHES_TABLE": {
+       "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+      },
+      "CLAWS_ATHENA_WORKGROUP": "claws-readonly",
+      "CLAWS_ATHENA_OUTPUT": {
+       "Fn::Join": [
+        "",
+        [
+         "s3://",
+         {
+          "Fn::ImportValue": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+         },
+         "/"
+        ]
+       ]
+      },
+      "CLAWS_GUARDRAIL_ID": {
+       "Fn::ImportValue": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+      },
+      "CLAWS_GUARDRAIL_VERSION": "DRAFT",
+      "CLAWS_METRICS_NAMESPACE": "claws",
+      "CLAWS_IRB_APPROVERS": "",
+      "CLAWS_EVENTS_BUS": "default",
+      "CLAWS_AUDIT_LOG_GROUP": "/aws/lambda/claws-audit"
+     }
+    },
+    "FunctionName": "claws-audit-export",
+    "Handler": "tools.audit_export.handler.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ClawsLambdaRole32FD0641",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.12",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "ClawsLambdaRoleDefaultPolicyCC5C0715",
+    "ClawsLambdaRole32FD0641"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsInternal-audit_export/Resource",
+    "aws:asset:path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ClawsDiscoverArnParamAE1ED986": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Description": "claws-discover Lambda ARN for qs-discover fan-out",
+    "Name": "/quick-suite/lambdas/claws-discover-arn",
+    "Type": "String",
+    "Value": {
+     "Fn::GetAtt": [
+      "ClawsTooldiscover71DCC5A1",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/ClawsDiscoverArnParam/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zVOywrCMBD8lt7TVVvBsxX0aKkHj7LGqLFNUrIbREr+3aTiaV67w1RQrTewLPBNpbz15aCvMJ0YZS+SdZmQn8oi7O727Hx/8C6MQqOBqXODEsmesXWDlp8sfyyKAc31hjDtg5Wsnc3Zn0dB9QWJFBNsMyQNTZC94gZJCSKTN3htHy16NIqVn7v/IkYx/6Wdj3SUs2PgMXAU7Yefzi5qWK2hLl6kdemDZW0UdD/8ArXX5mLyAAAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsToolsStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "discoverFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsTooldiscover71DCC5A1",
+     "Arn"
+    ]
+   }
+  },
+  "probeFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolprobe22B5BC56",
+     "Arn"
+    ]
+   }
+  },
+  "planFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolplanAE6F0751",
+     "Arn"
+    ]
+   }
+  },
+  "excavateFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolexcavateEA515722",
+     "Arn"
+    ]
+   }
+  },
+  "refineFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolrefineF2F997BE",
+     "Arn"
+    ]
+   }
+  },
+  "exportFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolexport988A25E3",
+     "Arn"
+    ]
+   }
+  },
+  "watchFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolwatchCAAFDF47",
+     "Arn"
+    ]
+   }
+  },
+  "watchesFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolwatches548F3F32",
+     "Arn"
+    ]
+   }
+  },
+  "teamplansFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolteamplans71276795",
+     "Arn"
+    ]
+   }
+  },
+  "shareplanFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolshareplanADCAE7B8",
+     "Arn"
+    ]
+   }
+  },
+  "approveplanFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsInternalapproveplanB9FADB00",
+     "Arn"
+    ]
+   }
+  },
+  "auditexportFunctionArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsInternalauditexportD03B939A",
+     "Arn"
+    ]
+   }
+  },
+  "ExportsOutputFnGetAttClawsTooldiscover71DCC5A1Arn54CD288B": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsTooldiscover71DCC5A1",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsTooldiscover71DCC5A1Arn54CD288B"
+   }
+  },
+  "ExportsOutputFnGetAttClawsToolprobe22B5BC56ArnB8C3D24D": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolprobe22B5BC56",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolprobe22B5BC56ArnB8C3D24D"
+   }
+  },
+  "ExportsOutputFnGetAttClawsToolplanAE6F0751ArnB0939206": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolplanAE6F0751",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolplanAE6F0751ArnB0939206"
+   }
+  },
+  "ExportsOutputFnGetAttClawsToolexcavateEA515722Arn6B493C62": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolexcavateEA515722",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexcavateEA515722Arn6B493C62"
+   }
+  },
+  "ExportsOutputFnGetAttClawsToolrefineF2F997BEArnDEB504B1": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolrefineF2F997BE",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolrefineF2F997BEArnDEB504B1"
+   }
+  },
+  "ExportsOutputFnGetAttClawsToolexport988A25E3Arn1F571B97": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsToolexport988A25E3",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexport988A25E3Arn1F571B97"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

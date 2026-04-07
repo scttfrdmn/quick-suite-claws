@@ -1,0 +1,347 @@
+{
+ "Resources": {
+  "RunsBucketF47F9FB8": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": {
+     "Fn::Join": [
+      "",
+      [
+       "claws-runs-",
+       {
+        "Ref": "AWS::AccountId"
+       }
+      ]
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "ExpirationInDays": 30,
+       "Id": "expire-old-runs",
+       "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 7
+       },
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/RunsBucket/Resource"
+   }
+  },
+  "AthenaResultsBucket879938FA": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": {
+     "Fn::Join": [
+      "",
+      [
+       "claws-athena-results-",
+       {
+        "Ref": "AWS::AccountId"
+       }
+      ]
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "ExpirationInDays": 7,
+       "Id": "expire-athena-results",
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/AthenaResultsBucket/Resource"
+   }
+  },
+  "PlansTableD3E3A972": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "plan_id",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "plan_id",
+      "KeyType": "HASH"
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "TableName": "claws-plans",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/PlansTable/Resource"
+   }
+  },
+  "SchemasTable1DC069C3": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "source_id",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "source_id",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "claws-schemas",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/SchemasTable/Resource"
+   }
+  },
+  "WatchesTable589BE523": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "watch_id",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "watch_id",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "claws-watches",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/WatchesTable/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/yWKwQ6DIBAFv8U7bK2Y9F4/wMb23iDQFFFoZDeNIfx7qZ7eZN400LQXqCv5jVxpx2c7QrqjVI4V9UxRQLqScgZZ9/IHZaY3L5egS/qQ42z+1w45s8HEQKvaXU/4oZLfNnwHfxJwbkFUU7SWr+TRLgaGY38Qk1JXhwAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsStorageStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "RunsBucketName": {
+   "Value": {
+    "Ref": "RunsBucketF47F9FB8"
+   }
+  },
+  "PlansTableName": {
+   "Value": {
+    "Ref": "PlansTableD3E3A972"
+   }
+  },
+  "SchemasTableName": {
+   "Value": {
+    "Ref": "SchemasTable1DC069C3"
+   }
+  },
+  "WatchesTableName": {
+   "Value": {
+    "Ref": "WatchesTable589BE523"
+   }
+  },
+  "ExportsOutputRefAthenaResultsBucket879938FAA6C75C95": {
+   "Value": {
+    "Ref": "AthenaResultsBucket879938FA"
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputRefAthenaResultsBucket879938FAA6C75C95"
+   }
+  },
+  "ExportsOutputFnGetAttRunsBucketF47F9FB8ArnB3FFCFB8": {
+   "Value": {
+    "Fn::GetAtt": [
+     "RunsBucketF47F9FB8",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputFnGetAttRunsBucketF47F9FB8ArnB3FFCFB8"
+   }
+  },
+  "ExportsOutputFnGetAttAthenaResultsBucket879938FAArn609FA1B4": {
+   "Value": {
+    "Fn::GetAtt": [
+     "AthenaResultsBucket879938FA",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputFnGetAttAthenaResultsBucket879938FAArn609FA1B4"
+   }
+  },
+  "ExportsOutputFnGetAttPlansTableD3E3A972ArnE313F4D2": {
+   "Value": {
+    "Fn::GetAtt": [
+     "PlansTableD3E3A972",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputFnGetAttPlansTableD3E3A972ArnE313F4D2"
+   }
+  },
+  "ExportsOutputFnGetAttSchemasTable1DC069C3Arn578A43A8": {
+   "Value": {
+    "Fn::GetAtt": [
+     "SchemasTable1DC069C3",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputFnGetAttSchemasTable1DC069C3Arn578A43A8"
+   }
+  },
+  "ExportsOutputFnGetAttWatchesTable589BE523ArnB0E68C5E": {
+   "Value": {
+    "Fn::GetAtt": [
+     "WatchesTable589BE523",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputFnGetAttWatchesTable589BE523ArnB0E68C5E"
+   }
+  },
+  "ExportsOutputRefRunsBucketF47F9FB88D94DED9": {
+   "Value": {
+    "Ref": "RunsBucketF47F9FB8"
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputRefRunsBucketF47F9FB88D94DED9"
+   }
+  },
+  "ExportsOutputRefPlansTableD3E3A972E66ED78C": {
+   "Value": {
+    "Ref": "PlansTableD3E3A972"
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputRefPlansTableD3E3A972E66ED78C"
+   }
+  },
+  "ExportsOutputRefSchemasTable1DC069C3999C5867": {
+   "Value": {
+    "Ref": "SchemasTable1DC069C3"
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputRefSchemasTable1DC069C3999C5867"
+   }
+  },
+  "ExportsOutputRefWatchesTable589BE52383440797": {
+   "Value": {
+    "Ref": "WatchesTable589BE523"
+   },
+   "Export": {
+    "Name": "ClawsStorageStack:ExportsOutputRefWatchesTable589BE52383440797"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

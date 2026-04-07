@@ -248,3 +248,36 @@ permit(
 when {
   principal.roles.contains("irb_monitor")
 };
+
+// ============================================================
+// CLAWS.LITERATURE_WATCH — living literature relevance surveillance
+//
+// Principals with the lab_director role may create and run
+// literature watches that score papers for lab profile relevance.
+// The resource is the watch item.
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.literature_watch",
+  resource
+)
+when {
+  principal.roles.contains("lab_director")
+};
+
+// ============================================================
+// CLAWS.CROSS_DISCIPLINE_WATCH — cross-field signal detection
+//
+// Principals with the lab_director role may create and run
+// cross-discipline watches that detect adjacent-field papers
+// addressing open problems in the primary research domain.
+// The resource is the watch item.
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.cross_discipline_watch",
+  resource
+)
+when {
+  principal.roles.contains("lab_director")
+};

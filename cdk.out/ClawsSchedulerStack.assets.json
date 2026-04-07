@@ -1,0 +1,36 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73": {
+      "displayName": "WatchRunner/Code",
+      "source": {
+        "path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-west-2-d708ce12": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    },
+    "b6d434da10e0b76d9f43a6e296f85ea5eea5b89d35e68ae4b6003fb99618282a": {
+      "displayName": "ClawsSchedulerStack Template",
+      "source": {
+        "path": "ClawsSchedulerStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-west-2-2a992f68": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "b6d434da10e0b76d9f43a6e296f85ea5eea5b89d35e68ae4b6003fb99618282a.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

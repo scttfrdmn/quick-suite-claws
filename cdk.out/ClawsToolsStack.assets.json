@@ -1,0 +1,36 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73": {
+      "displayName": "ClawsTool-discover/Code",
+      "source": {
+        "path": "asset.b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "current_account-us-west-2-d708ce12": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "b659291fc9c1f4aebd69905e08062136a39108b15dc16afbad24541579461c73.zip",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    },
+    "c5d72d9d457c005c24812f18216f57cf63a1e731460091ba01b57e3ab59266c2": {
+      "displayName": "ClawsToolsStack Template",
+      "source": {
+        "path": "ClawsToolsStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-us-west-2-ecdc18a3": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2",
+          "objectKey": "c5d72d9d457c005c24812f18216f57cf63a1e731460091ba01b57e3ab59266c2.json",
+          "region": "us-west-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-us-west-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

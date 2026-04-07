@@ -1,0 +1,198 @@
+{
+ "Resources": {
+  "ClawsBaseGuardrail": {
+   "Type": "AWS::Bedrock::Guardrail",
+   "Properties": {
+    "BlockedInputMessaging": "Request blocked by clAWS content policy.",
+    "BlockedOutputsMessaging": "Response blocked by clAWS content policy.",
+    "ContentPolicyConfig": {
+     "FiltersConfig": [
+      {
+       "InputStrength": "HIGH",
+       "OutputStrength": "HIGH",
+       "Type": "SEXUAL"
+      },
+      {
+       "InputStrength": "HIGH",
+       "OutputStrength": "HIGH",
+       "Type": "VIOLENCE"
+      },
+      {
+       "InputStrength": "HIGH",
+       "OutputStrength": "HIGH",
+       "Type": "HATE"
+      },
+      {
+       "InputStrength": "MEDIUM",
+       "OutputStrength": "MEDIUM",
+       "Type": "INSULTS"
+      },
+      {
+       "InputStrength": "HIGH",
+       "OutputStrength": "HIGH",
+       "Type": "MISCONDUCT"
+      },
+      {
+       "InputStrength": "HIGH",
+       "OutputStrength": "NONE",
+       "Type": "PROMPT_ATTACK"
+      }
+     ]
+    },
+    "Description": "clAWS base content safety guardrail",
+    "Name": "claws-base",
+    "SensitiveInformationPolicyConfig": {
+     "PiiEntitiesConfig": [
+      {
+       "Action": "BLOCK",
+       "Type": "US_SOCIAL_SECURITY_NUMBER"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "CREDIT_DEBIT_CARD_NUMBER"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "CREDIT_DEBIT_CARD_CVV"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "CREDIT_DEBIT_CARD_EXPIRY"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "PIN"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "PASSWORD"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "AWS_ACCESS_KEY"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "AWS_SECRET_KEY"
+      },
+      {
+       "Action": "ANONYMIZE",
+       "Type": "EMAIL"
+      },
+      {
+       "Action": "ANONYMIZE",
+       "Type": "PHONE"
+      },
+      {
+       "Action": "ANONYMIZE",
+       "Type": "NAME"
+      },
+      {
+       "Action": "BLOCK",
+       "Type": "US_INDIVIDUAL_TAX_IDENTIFICATION_NUMBER"
+      }
+     ],
+     "RegexesConfig": [
+      {
+       "Action": "ANONYMIZE",
+       "Description": "Internal project identifiers",
+       "Name": "internal_project_code",
+       "Pattern": "PRJ-\\d{6}"
+      },
+      {
+       "Action": "BLOCK",
+       "Description": "Medical record numbers (common formats)",
+       "Name": "medical_record_number",
+       "Pattern": "MRN[-:]?\\s?\\d{6,10}"
+      }
+     ]
+    },
+    "WordPolicyConfig": {
+     "WordsConfig": [
+      {
+       "Text": "CONFIDENTIAL-INTERNAL"
+      },
+      {
+       "Text": "TOP-SECRET"
+      }
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGuardrailsStack/ClawsBaseGuardrail"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzIx1zNQTCwv1k1OydbNyUzSqw4uSUzO1gEKxSelphTlJ2frOafluZcmFqUUJWbm6AA5/qUlBaUltToBlSUZ+Xn6xnqGJnrGilnFmZm6RaV5JZm5qXpBEBoAePwMnWEAAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGuardrailsStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "BaseGuardrailId": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsBaseGuardrail",
+     "GuardrailId"
+    ]
+   }
+  },
+  "BaseGuardrailArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsBaseGuardrail",
+     "GuardrailArn"
+    ]
+   }
+  },
+  "ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsBaseGuardrail",
+     "GuardrailId"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsGuardrailsStack:ExportsOutputFnGetAttClawsBaseGuardrailGuardrailId3AB1CADB"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

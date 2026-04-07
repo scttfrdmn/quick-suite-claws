@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-04-07
+
+### Added
+- **Issue #71: Living literature watch (`watch_type: "literature"`)** — New watch type that monitors PubMed/bioRxiv excavation results for papers semantically relevant to a lab research profile. Watch spec requires `semantic_match.lab_profile_ssm_key` (same pattern as `new_award`). Optional `reagent_config_uri` (S3/SSM JSON list of reagent keywords) and `protocol_config_uri` (S3/SSM JSON list of method names) enable per-paper `relevance_type` classification: `"reagent"` (keywords found → `validation_steps: ["confirm_antibody_catalog_number"]`), `"protocol"` (method matched → `validation_steps: ["replicate_protocol"]`), or `"methodology"` (default → `validation_steps: ["cite_and_review"]`). Runner calls Router `summarize` per paper (cap 50 rows); papers scoring ≥ `abstract_similarity_threshold` (default 0.75) are returned sorted by score descending. Router failures are non-blocking.
+- **Issue #72: Cross-discipline signal watch (`watch_type: "cross_discipline"`)** — New watch type that detects papers from adjacent research fields addressing open problems in a primary domain. Watch spec requires `open_problems_uri` (S3/SSM URI to JSON list of `{gap_statement, domain}` objects) and `primary_field` (string). Optional `field_distance` (default 0.5) and `citations_in_primary_field` (default 5) control how cross-field a paper must be. Runner loads the open-problems list, calls Router `research` with `grounding_mode="strict"` per paper, parses the JSON response for `cross_field_score`, `source_field`, and `citations_in_primary_field`; papers meeting both thresholds are returned with `{gap_id, gap_statement, source_field, cross_field_score}` appended.
+- **`call_router()` grounding mode parameter** — `tools/shared.py`: `call_router()` now accepts an optional `grounding_mode` parameter (default `"default"`); when set to `"strict"`, the field is included in the router request body so the research tool activates citation-grounded mode.
+- **Two Cedar permits in `policies/default.cedar`** — `claws.literature_watch` and `claws.cross_discipline_watch` actions permitted for principals with `lab_director` role.
+
+### Tests
+- 25 new tests in `tools/tests/test_v16_watches.py`: `TestLiteratureWatchValidation` (3) — missing semantic_match, missing SSM key, valid spec with optional URI fields stored; `TestRunLiteratureWatch` (8) — happy path with relevance_type, threshold filter, reagent/protocol type detection, Router failure non-blocking, empty rows, SSM failure, sort order; `TestCrossDisciplineWatchValidation` (3) — missing open_problems_uri, missing primary_field, valid spec; `TestRunCrossDisciplineWatch` (7) — qualifying paper with gap metadata, field_distance filter, high-citations filter, SSM URI dispatch, Router failure skip, empty rows, URI load failure; `TestCallRouterGroundingMode` (2) — strict mode in request body, default mode omitted.
+
 ## [0.15.0] - 2026-04-07
 
 ### Added

@@ -1,0 +1,86 @@
+{
+  "/ClawsSchedulerStack/ClawsWatchesGroup": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsWatchesGroup"
+    }
+  ],
+  "/ClawsSchedulerStack/WatchRunnerArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchRunnerArn"
+    }
+  ],
+  "/ClawsSchedulerStack/SchedulerInvokeRoleArn": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SchedulerInvokeRoleArn"
+    }
+  ],
+  "/ClawsSchedulerStack/ScheduleGroupName": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ScheduleGroupName"
+    }
+  ],
+  "/ClawsSchedulerStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsSchedulerStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsSchedulerStack/WatchRunnerRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchRunnerRole24AAF87F"
+    }
+  ],
+  "/ClawsSchedulerStack/SchedulerInvokeRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SchedulerInvokeRoleE2A7D616"
+    }
+  ],
+  "/ClawsSchedulerStack/WatchRunner/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchRunner9718E6B3"
+    }
+  ],
+  "/ClawsSchedulerStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsSchedulerStack/Exports/Output{\"Fn::GetAtt\":[\"SchedulerInvokeRoleE2A7D616\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttSchedulerInvokeRoleE2A7D616Arn9F695C61"
+    }
+  ],
+  "/ClawsSchedulerStack/Exports/Output{\"Fn::GetAtt\":[\"WatchRunner9718E6B3\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttWatchRunner9718E6B3Arn2E3BFD52"
+    }
+  ],
+  "/ClawsSchedulerStack/WatchRunnerRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "WatchRunnerRoleDefaultPolicyBDF3011F"
+    }
+  ],
+  "/ClawsSchedulerStack/SchedulerInvokeRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "SchedulerInvokeRoleDefaultPolicy29DAA443"
+    }
+  ]
+}

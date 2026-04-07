@@ -1,0 +1,609 @@
+{
+ "Resources": {
+  "AgentCoreProviderRole7139C89B": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AgentCoreProviderRole/Resource"
+   }
+  },
+  "AgentCoreProviderRoleDefaultPolicy59DF001F": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "bedrock-agentcore:CreateAgentRuntime",
+        "bedrock-agentcore:DeleteAgentRuntime",
+        "bedrock-agentcore:GetAgentRuntime",
+        "bedrock-agentcore:CreateAgentRuntimeEndpoint",
+        "bedrock-agentcore:DeleteAgentRuntimeEndpoint"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "AgentCoreProviderRoleDefaultPolicy59DF001F",
+    "Roles": [
+     {
+      "Ref": "AgentCoreProviderRole7139C89B"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AgentCoreProviderRole/DefaultPolicy/Resource"
+   }
+  },
+  "ClawsGateway913EA9D8": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": "{\"action\":\"createAgentRuntime\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeName\":\"claws-gateway\",\"description\":\"clAWS secure data excavation tool plane\"},\"physicalResourceId\":{\"responsePath\":\"agentRuntimeId\"}}",
+    "Delete": "{\"action\":\"deleteAgentRuntime\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"PHYSICAL:RESOURCEID:\"}}",
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsGateway/Resource/Default"
+   }
+  },
+  "AWS679f53fac002430cb0da5b7982bd22872D164C4C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": {
+      "Fn::Sub": "cdk-hnb659fds-assets-${AWS::AccountId}-us-west-2"
+     },
+     "S3Key": "56f7467bbde8a5efebcf57ae9e460027607099bab9f844669dcf5d800172ee5a.zip"
+    },
+    "Handler": "index.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "AgentCoreProviderRole7139C89B",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Timeout": 120
+   },
+   "DependsOn": [
+    "AgentCoreProviderRoleDefaultPolicy59DF001F",
+    "AgentCoreProviderRole7139C89B"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AWS679f53fac002430cb0da5b7982bd2287/Resource",
+    "aws:asset:path": "asset.56f7467bbde8a5efebcf57ae9e460027607099bab9f844669dcf5d800172ee5a",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "AllowAgentCorediscover": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsTooldiscover71DCC5A1Arn54CD288B"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-discover"
+   }
+  },
+  "ClawsEndpointdiscover9565A505": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-discover\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsTooldiscover71DCC5A1Arn54CD288B"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-discover/Resource/Default"
+   }
+  },
+  "AllowAgentCoreprobe": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolprobe22B5BC56ArnB8C3D24D"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-probe"
+   }
+  },
+  "ClawsEndpointprobeA7CF53EB": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-probe\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolprobe22B5BC56ArnB8C3D24D"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-probe/Resource/Default"
+   }
+  },
+  "AllowAgentCoreplan": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolplanAE6F0751ArnB0939206"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-plan"
+   }
+  },
+  "ClawsEndpointplan9B25DB31": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-plan\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolplanAE6F0751ArnB0939206"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-plan/Resource/Default"
+   }
+  },
+  "AllowAgentCoreexcavate": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexcavateEA515722Arn6B493C62"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-excavate"
+   }
+  },
+  "ClawsEndpointexcavate43BD708F": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-excavate\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexcavateEA515722Arn6B493C62"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-excavate/Resource/Default"
+   }
+  },
+  "AllowAgentCorerefine": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolrefineF2F997BEArnDEB504B1"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-refine"
+   }
+  },
+  "ClawsEndpointrefine2AF9308D": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-refine\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolrefineF2F997BEArnDEB504B1"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-refine/Resource/Default"
+   }
+  },
+  "AllowAgentCoreexport": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexport988A25E3Arn1F571B97"
+    },
+    "Principal": "bedrock-agentcore.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "ClawsGateway913EA9D8",
+      "agentRuntimeArn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/AllowAgentCore-export"
+   }
+  },
+  "ClawsEndpointexport02FC9757": {
+   "Type": "Custom::AWS",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "AWS679f53fac002430cb0da5b7982bd22872D164C4C",
+      "Arn"
+     ]
+    },
+    "Create": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"createAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"name\":\"claws-export\",\"lambdaArn\":\"",
+       {
+        "Fn::ImportValue": "ClawsToolsStack:ExportsOutputFnGetAttClawsToolexport988A25E3Arn1F571B97"
+       },
+       "\"},\"physicalResourceId\":{\"responsePath\":\"endpointId\"}}"
+      ]
+     ]
+    },
+    "Delete": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"action\":\"deleteAgentRuntimeEndpoint\",\"service\":\"BedrockAgentCore\",\"parameters\":{\"agentRuntimeId\":\"",
+       {
+        "Fn::GetAtt": [
+         "ClawsGateway913EA9D8",
+         "agentRuntimeId"
+        ]
+       },
+       "\",\"endpointId\":\"PHYSICAL:RESOURCEID:\"}}"
+      ]
+     ]
+    },
+    "InstallLatestAwsSdk": true
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/ClawsEndpoint-export/Resource/Default"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11PyW7CQAz9Fu4TtyRIPQMSV6L0A6JhMNTNLCj2CKEo/14nLKo4vcXP1nMJ5eoLPhf2yoU7doWnAwzfYl1n1GoHsgGGJnk021OcsU6e3G2SdzYab8PhaHWN4tmjpLjL0QmlaF5E0/95jX0gZlWj4aq1zCgM6wlUwya7DmVjGUfjMksKbY+ccu9QU1fezl7zsMy71KJPPp/Ud85abRrss1yyjKa+yU+KHxUsV1Atfpmo6HMUCgjNHf8ADPyDPhkBAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ClawsGatewayStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "GatewayId": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsGateway913EA9D8",
+     "agentRuntimeId"
+    ]
+   }
+  },
+  "GatewayArn": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsGateway913EA9D8",
+     "agentRuntimeArn"
+    ]
+   }
+  },
+  "ExportsOutputFnGetAttClawsGateway913EA9D8agentRuntimeId4E3E5925": {
+   "Value": {
+    "Fn::GetAtt": [
+     "ClawsGateway913EA9D8",
+     "agentRuntimeId"
+    ]
+   },
+   "Export": {
+    "Name": "ClawsGatewayStack:ExportsOutputFnGetAttClawsGateway913EA9D8agentRuntimeId4E3E5925"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

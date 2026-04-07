@@ -138,8 +138,11 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
 
     # Validate watch type
     watch_type = body.get("type", "alert")
-    if watch_type not in ("alert", "feed", "new_award"):
-        return error(f"type must be 'alert', 'feed', or 'new_award', got: {watch_type!r}")
+    if watch_type not in ("alert", "feed", "new_award", "literature", "cross_discipline"):
+        return error(
+            f"type must be 'alert', 'feed', 'new_award', 'literature', or 'cross_discipline', "
+            f"got: {watch_type!r}"
+        )
 
     # feed watches require a dedup_key
     feed_dedup_key = body.get("feed_dedup_key", "")
@@ -153,6 +156,29 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
             return error("semantic_match is required for new_award watches")
         if not semantic_match.get("lab_profile_ssm_key"):
             return error("semantic_match.lab_profile_ssm_key is required for new_award watches")
+
+    # literature watches require semantic_match with lab_profile_ssm_key
+    if watch_type == "literature":
+        if not semantic_match or not isinstance(semantic_match, dict):
+            return error("semantic_match is required for literature watches")
+        if not semantic_match.get("lab_profile_ssm_key"):
+            return error("semantic_match.lab_profile_ssm_key is required for literature watches")
+
+    # cross_discipline watches require open_problems_uri and primary_field
+    cross_discipline_config: dict = {}
+    if watch_type == "cross_discipline":
+        open_problems_uri = body.get("open_problems_uri", "")
+        primary_field = body.get("primary_field", "")
+        if not open_problems_uri:
+            return error("open_problems_uri is required for cross_discipline watches")
+        if not primary_field:
+            return error("primary_field is required for cross_discipline watches")
+        cross_discipline_config = {
+            "open_problems_uri": open_problems_uri,
+            "primary_field": primary_field,
+            "field_distance": float(body.get("field_distance", 0.5)),
+            "citations_in_primary_field": int(body.get("citations_in_primary_field", 5)),
+        }
 
     # compliance watches require a ruleset URI
     compliance_mode = bool(body.get("compliance_mode"))
@@ -195,8 +221,15 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
     if watch_type == "feed":
         spec["feed_dedup_key"] = feed_dedup_key
         spec["feed_result_uri"] = None  # filled by runner after first run
-    if watch_type == "new_award" and semantic_match:
+    if watch_type in ("new_award", "literature") and semantic_match:
         spec["semantic_match"] = semantic_match
+    if watch_type == "literature":
+        if body.get("reagent_config_uri"):
+            spec["reagent_config_uri"] = body["reagent_config_uri"]
+        if body.get("protocol_config_uri"):
+            spec["protocol_config_uri"] = body["protocol_config_uri"]
+    if watch_type == "cross_discipline" and cross_discipline_config:
+        spec.update(cross_discipline_config)
     if compliance_mode:
         spec["compliance_mode"] = True
         spec["compliance_ruleset_uri"] = compliance_ruleset_uri

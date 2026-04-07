@@ -1,0 +1,110 @@
+{
+  "/ClawsPolicyStack/ClawsCedarPolicy": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsPolicyStack/AWS679f53fac002430cb0da5b7982bd2287": [
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-singleton",
+      "data": true
+    },
+    {
+      "type": "aws:cdk:is-custom-resource-handler-runtime-family",
+      "data": 0
+    }
+  ],
+  "/ClawsPolicyStack/ClawsPolicyAssociation": [
+    {
+      "type": "aws:cdk:warning",
+      "data": "installLatestAwsSdk was not specified, and defaults to true. You probably do not want this. Set the global context flag '@aws-cdk/customresources:installLatestAwsSdkDefault' to false to switch this behavior off project-wide, or set the property explicitly to true if you know you need to call APIs that are not in Lambda's built-in SDK version. [ack: @aws-cdk/custom-resources:installLatestAwsSdkNotSpecified]",
+      "trace": [
+        "Annotations.addMessage (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:2399)",
+        "Annotations.addWarningV2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1087)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/custom-resources/lib/aws-custom-resource/aws-custom-resource.js:1:8674)",
+        "new AwsCustomResource2 (/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/jsii-kernel-FXQKDZ/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:855)",
+        "Kernel._Kernel_create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:4012:25)",
+        "Kernel.create (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:3682:93)",
+        "KernelHost.processRequest (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17342:36)",
+        "KernelHost.run (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17302:22)",
+        "Immediate._onImmediate (/private/var/folders/nn/qc8dm2b954jbyvcwk0v79ync0000gn/T/tmphdd6w7vz/lib/program.js:17303:45)",
+        "process.processImmediate (node:internal/timers:504:21)"
+      ]
+    }
+  ],
+  "/ClawsPolicyStack/PolicyId": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PolicyId"
+    }
+  ],
+  "/ClawsPolicyStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/ClawsPolicyStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/ClawsPolicyStack/PolicyProviderRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PolicyProviderRole4D186FEB"
+    }
+  ],
+  "/ClawsPolicyStack/AWS679f53fac002430cb0da5b7982bd2287/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "AWS679f53fac002430cb0da5b7982bd22872D164C4C"
+    }
+  ],
+  "/ClawsPolicyStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/ClawsPolicyStack/PolicyProviderRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "PolicyProviderRoleDefaultPolicy0BA48360"
+    }
+  ],
+  "/ClawsPolicyStack/ClawsCedarPolicy/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsCedarPolicy0600CB9C"
+    }
+  ],
+  "/ClawsPolicyStack/ClawsPolicyAssociation/Resource/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ClawsPolicyAssociation243539C5"
+    }
+  ]
+}
