@@ -81,18 +81,26 @@ def handler(event: dict, context: Any) -> dict:
         if plan is None:
             return error(NotFoundError(f"Plan {plan_id} not found"))
 
-        # Block execution if the plan requires IRB approval and is not yet approved
+        # Block execution if the plan is not in an executable state.
+        # "pending_approval" — requires IRB approval first
+        # "template"         — must be instantiated via instantiate_plan first (#66)
         plan_status = plan.get("status", "ready")
-        if plan_status == "pending_approval":
+        if plan_status in ("pending_approval", "template"):
             audit_log("excavate", principal, body, {
-                "status": "pending_approval",
+                "status": plan_status,
                 "plan_id": plan_id,
-                "reason": "Plan requires IRB approval before execution",
+                "reason": f"Plan status '{plan_status}' is not executable",
             }, request_id=request_id)
+            if plan_status == "pending_approval":
+                return success({
+                    "status": "pending_approval",
+                    "plan_id": plan_id,
+                    "message": "This plan requires IRB approval before execution",
+                })
             return success({
-                "status": "pending_approval",
+                "status": "template",
                 "plan_id": plan_id,
-                "message": "This plan requires IRB approval before execution",
+                "message": "This is a plan template. Use instantiate_plan to create an executable plan.",
             })
 
         # Check principal is authorized: must be plan owner OR in shared_with list

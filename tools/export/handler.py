@@ -31,8 +31,33 @@ EVENTS_CLIENT = None
 CALLBACK_SECRET = os.environ.get("CLAWS_CALLBACK_SECRET", "")
 QUICKSIGHT_ACCOUNT_ID = os.environ.get("QUICKSIGHT_ACCOUNT_ID", "")
 CLAWS_LOOKUP_TABLE = os.environ.get("CLAWS_LOOKUP_TABLE", "")
+# Comma-separated URI prefixes for export destination allowlist (#80).
+# When set, all export destinations must match at least one prefix.
+# Callback destinations additionally require HTTPS regardless of this setting.
+# Leave unset to allow any destination (backward compatible).
+CLAWS_EXPORT_ALLOWED_DESTINATIONS = os.environ.get("CLAWS_EXPORT_ALLOWED_DESTINATIONS", "")
 
 _qs_client = None
+
+
+def _validate_destination_uri(dest_type: str, dest_uri: str) -> str | None:
+    """Validate export destination URI against the operator allowlist.
+
+    Returns None on success, or an error message string on failure.
+
+    Callback destinations always require HTTPS regardless of allowlist configuration.
+    All other destinations are allowed when CLAWS_EXPORT_ALLOWED_DESTINATIONS is unset
+    (backward compatible). When set, the URI must start with one of the listed prefixes.
+    """
+    if dest_type == "callback" and not dest_uri.startswith("https://"):
+        return "Callback destination must use HTTPS"
+    allowlist_raw = CLAWS_EXPORT_ALLOWED_DESTINATIONS.strip()
+    if not allowlist_raw:
+        return None  # no allowlist configured — allow any destination
+    allowed = [p.strip() for p in allowlist_raw.split(",") if p.strip()]
+    if any(dest_uri.startswith(p) for p in allowed):
+        return None
+    return "Destination URI is not in the approved allowlist"
 
 
 def _quicksight_client() -> Any:
@@ -93,6 +118,15 @@ def handler(event: dict, context: Any) -> dict:
     # Export to destination
     dest_type = destination["type"]
     dest_uri = destination["uri"]
+
+    # Validate destination URI against operator allowlist (#80)
+    uri_error = _validate_destination_uri(dest_type, dest_uri)
+    if uri_error:
+        audit_log("export", principal, body, {
+            "status": "rejected",
+            "reason": uri_error,
+        }, request_id=request_id)
+        return error(uri_error)
 
     if dest_type == "s3":
         result = _export_to_s3(dest_uri, payload, provenance, export_id, export_mode)

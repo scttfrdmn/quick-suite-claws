@@ -51,6 +51,16 @@ def handler(event: dict, context: Any) -> dict:
         _mark_errored(watch_id, watch, "Plan not found")
         return {"status": "error", "error": "Plan not found"}
 
+    # Re-evaluate plan status at execution time (#79).
+    # The watch runner is not an AgentCore Gateway tool — Cedar is not evaluated here.
+    # Honoring the structural plan status (set by Cedar at creation time) ensures that
+    # plans requiring IRB approval (pending_approval) or template plans are never executed
+    # by the scheduler even if the watch was created before the plan status changed.
+    plan_status = plan.get("status", "ready")
+    if plan_status not in ("ready", "approved"):
+        _mark_errored(watch_id, watch, f"Plan status '{plan_status}' is not executable")
+        return {"status": "error", "error": "Plan is not in an executable state"}
+
     executor = EXECUTORS.get(plan.get("query_type", ""))
     if executor is None:
         _mark_errored(watch_id, watch, f"Unsupported query_type: {plan.get('query_type')}")

@@ -37,6 +37,8 @@ def handler(event: dict, context: Any) -> dict:
     source_id = body.get("source_id", "")
     constraints = body.get("constraints", {})
     team_id = body.get("team_id")
+    is_template = bool(body.get("is_template", False))
+    template_variables: dict = body.get("template_variables", {})
     authorizer = event.get("requestContext", {}).get("authorizer", {})
     principal = authorizer.get("principalId", "unknown")
     # Principal roles are set by Cognito user pool groups and injected by API Gateway
@@ -53,6 +55,35 @@ def handler(event: dict, context: Any) -> dict:
         validate_source_id(source_id)
     except ValueError as exc:
         return error(str(exc))
+
+    # Template plans — store objective + variables without invoking the LLM (#66).
+    # Templates are reusable blueprints with {{variable}} placeholders in the objective.
+    # Use instantiate_plan to substitute values and generate an executable concrete plan.
+    if is_template:
+        plan_id = new_plan_id()
+        template_plan: dict = {
+            "source_id": source_id,
+            "objective": objective,
+            "query": "",
+            "query_type": "",
+            "created_by": principal,
+            "status": "template",
+            "constraints": constraints,
+            "template_variables": template_variables,
+        }
+        if team_id:
+            template_plan["team_id"] = team_id
+        store_plan(plan_id, template_plan)
+        audit_log("plan", principal, body, {
+            "status": "template",
+            "plan_id": plan_id,
+        }, request_id=request_id)
+        return success({
+            "plan_id": plan_id,
+            "status": "template",
+            "objective": objective,
+            "template_variables": template_variables,
+        })
 
     # Determine query type from source_id backend (needed for early validation)
     backend = source_id.split(":")[0]
@@ -193,6 +224,7 @@ def handler(event: dict, context: Any) -> dict:
     plan_id = new_plan_id()
     plan = {
         "source_id": source_id,
+        "objective": objective,  # stored for provenance and instantiate_plan traceability
         "query": generated_query,
         "query_type": query_type,
         "created_by": principal,

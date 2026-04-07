@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-04-07
+
+### Added
+- **Plan templating (#66):** `plan` handler accepts `is_template: true` + `template_variables: {var: default}` to store a reusable objective blueprint (e.g., `"Find {{disease}} patients since {{start_date}}"`) without LLM invocation; new `instantiate_plan` AgentCore tool resolves `{{variable}}` placeholders with caller-supplied values and delegates to the standard plan generation flow; `excavate` blocks plans with `status="template"` until instantiated; values containing `{{` are rejected to prevent nested template injection
+- **Export destination allowlist (#80):** `CLAWS_EXPORT_ALLOWED_DESTINATIONS` env var (comma-separated URI prefixes) gates all export destinations; `_validate_destination_uri()` in `export/handler.py` checks every export against the list before any I/O; callback destinations always require `https://` regardless of allowlist; unset allowlist preserves backward-compatible allow-all behavior
+- 34 new tests in `tools/tests/test_v14_features.py`
+
+### Fixed
+- **Watch runner executes non-executable plans (#79):** Watch runner (`tools/watch/runner.py`) now checks `plan["status"]` after loading the plan and before calling the executor; plans with status `"pending_approval"` or `"template"` (or any non-`ready`/`approved` status) cause the watch to be marked errored rather than silently executing; mirrors the identical guard already in `excavate/handler.py`
+
 ## [0.13.0] - 2026-04-07
 
 ### Fixed

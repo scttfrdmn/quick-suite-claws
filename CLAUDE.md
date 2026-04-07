@@ -127,7 +127,7 @@ claws/
 ## Testing
 
 ```bash
-# Run all tests — 155 passing, no AWS credentials required
+# Run all tests — 209 passing, no AWS credentials required
 uv run pytest tools/ -v
 
 # Lint and format
@@ -182,7 +182,8 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - v0.11.0 compliance: IRB `pending_approval` plan status; `approve_plan` internal Lambda; `plan.approve` Cedar action; FERPA Guardrail preset (`guardrails/ferpa/ferpa_guardrail.json`); four Cedar policy templates (`policies/templates/`); compliance audit export Lambda (`audit_export`) writing SHA-256-hashed NDJSON; CDK `enable_ferpa_guardrail` context flag
 - v0.12.0 security: column-level access control (#61); multi-backend cost estimator (#62); HMAC-SHA-256 audit hashing (#73); MCP source ID validation (#74); mutation detection in DynamoDB + S3 Select executors (#81); refine summary guardrail scan (#82); `requires_irb` enforcement in `approve_plan` (#86); OpenSearch error sanitization (#87); DynamoDB PITR + deletion protection on all tables (#83); Lambda log retention policies (#84); Athena IAM scoped to workgroup ARN (#85)
 - v0.13.0 security: silent guardrail bypass made visible (`bypassed` status + ERROR log) (#77); `validate_source_id()` at handler entry points blocks path traversal and unknown prefixes (#78); OpenSearch DSL script injection blocked via `_check_dsl_scripts()` recursive walk (#76); Cedar `plan.approve` permit requires `requires_irb == true` + `status == "pending_approval"` (#75)
-- 175 passing tests (substrate integration + pure unit)
+- v0.14.0 features: plan templating with `{{variable}}` substitution via `instantiate_plan` tool (#66); export destination URI allowlist (`CLAWS_EXPORT_ALLOWED_DESTINATIONS`) + HTTPS enforcement on callback destinations (#80); watch runner plan status check blocks `pending_approval`/`template` plans at execution time (#79)
+- 209 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
@@ -200,6 +201,7 @@ Released:
 - **v0.11.0** — Compliance: IRB approval workflow (`pending_approval` plan status + `approve_plan` Lambda + `plan.approve` Cedar action), FERPA Guardrail preset, four Cedar policy templates, compliance `audit_export` Lambda (NDJSON with SHA-256 hashed I/O) (issues #56–#60) ✓
 - **v0.12.0** — Security hardening: column-level access control, multi-backend cost estimator, HMAC audit hashing, MCP source validation (#61, #62, #73, #74); mutation detection in DynamoDB + S3 Select, refine summary guardrail scan, `requires_irb` enforcement, OpenSearch error sanitization, DynamoDB PITR + deletion protection, Lambda log retention, Athena IAM scoped to workgroup (issues #81–#87) ✓
 - **v0.13.0** — P1 security fixes: silent guardrail bypass now visible (#77), source_id validation at handler entry (#78), OpenSearch DSL script injection blocked (#76), Cedar plan.approve requires requires_irb + pending_approval (#75) ✓
+- **v0.14.0** — Plan templating with `{{variable}}` placeholders + `instantiate_plan` tool (#66); export destination allowlist + HTTPS enforcement (#80); watch runner plan status check (#79) ✓
 
 All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11–v0.13).
 
