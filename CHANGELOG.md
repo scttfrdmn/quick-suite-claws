@@ -7,6 +7,14 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-04-07
+
+### Added
+- **New-award intelligence watch (#70):** New `watch_type: "new_award"` executes a locked plan against NIH Reporter or NSF Awards source data, fetches a lab profile abstract from SSM Parameter Store, and scores each award abstract for semantic similarity via Router `summarize`; only awards meeting or exceeding `abstract_similarity_threshold` (default 0.82) are included in the notification payload; Router failures are non-blocking (logged as warnings, award skipped); maximum 50 rows scored per run to cap Router spend
+- **Discover domain allowlist for research APIs (#70):** `nih-reporter` and `nsf-awards` domain strings in `discover` now dispatch to `_discover_registry()` with the corresponding `source_type_filter`; supports scoped discovery against quick-suite-data registry entries of type `nih_reporter` and `nsf_awards`
+- **SSM read permission in scheduler CDK:** Watch runner IAM role now has `ssm:GetParameter` on `/quick-suite/claws/*` parameter path; required for lab profile fetch at execution time
+- 16 new tests in `tools/tests/test_new_award_watch.py` covering watch creation validation, SSM/Router failure modes, 50-row cap, full handler integration, and discover domain dispatch
+
 ## [0.14.0] - 2026-04-07
 
 ### Added
