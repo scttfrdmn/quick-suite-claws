@@ -46,6 +46,11 @@ def get_mcp_registry() -> dict[str, dict]:
     return _MODULE_REGISTRY
 
 
+def known_servers() -> set[str]:
+    """Return the set of registered MCP server names."""
+    return set(get_mcp_registry().keys())
+
+
 def _load_config() -> dict[str, dict]:
     """Load and parse MCP server config from env var (inline JSON or S3 URI)."""
     raw = os.environ.get("CLAWS_MCP_SERVERS_CONFIG", "").strip()

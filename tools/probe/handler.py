@@ -72,6 +72,14 @@ def handler(event: dict, context: Any) -> dict:
     # Cache schema for use by the plan tool
     if "schema" in result:
         cache_schema(source_id, result["schema"])
+        # Summarise column visibility classification counts for the response
+        columns = result["schema"].get("columns", [])
+        if any(col.get("visibility", "public") != "public" for col in columns):
+            counts: dict[str, int] = {}
+            for col in columns:
+                vis = col.get("visibility", "public")
+                counts[vis] = counts.get(vis, 0) + 1
+            result["column_classifications"] = counts
 
     # Scan sample data for PII/PHI before returning to agent
     if "samples" in result and result["samples"]:
@@ -107,11 +115,17 @@ def _probe_athena(qualified_name: str, mode: str, sample_rows: int) -> dict:
             entry: dict = {"name": col["Name"], "type": col["Type"]}
             if comment := col.get("Comment", ""):
                 entry["comment"] = comment
+            # Column-level visibility from Glue column Parameters.
+            # Set with: aws glue update-table ... column Parameters claws_visibility=phi|restricted|public
+            visibility = (col.get("Parameters") or {}).get("claws_visibility", "public")
+            entry["visibility"] = visibility
             columns.append(entry)
         for col in table_data.get("PartitionKeys", []):
             entry = {"name": col["Name"], "type": col["Type"], "partition_key": True}
             if comment := col.get("Comment", ""):
                 entry["comment"] = comment
+            visibility = (col.get("Parameters") or {}).get("claws_visibility", "public")
+            entry["visibility"] = visibility
             columns.append(entry)
 
         result["schema"] = {

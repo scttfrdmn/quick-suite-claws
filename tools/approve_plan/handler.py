@@ -73,6 +73,12 @@ def handler(event: dict, context: Any) -> dict:
     if plan is None:
         return error(NotFoundError(f"Plan {plan_id} not found"))
 
+    # Only plans explicitly marked requires_irb can be approved through this pathway.
+    if not plan.get("requires_irb"):
+        return error(ValidationError(
+            "Plan does not require IRB approval — cannot approve"
+        ))
+
     # A principal cannot approve their own plan (conflict of interest).
     plan_owner = plan.get("created_by", "")
     if plan_owner and approved_by == plan_owner:
@@ -86,12 +92,10 @@ def handler(event: dict, context: Any) -> dict:
 
     current_status = plan.get("status", "ready")
     if current_status not in ("pending_approval", "approved"):
-        # Only pending plans need approval — already-approved or ready plans
-        # can be re-approved (idempotent), but error on non-IRB plans.
-        if current_status == "ready":
-            return error(ValidationError(
-                f"Plan {plan_id} has status 'ready' and does not require IRB approval"
-            ))
+        # Only pending or already-approved plans are valid targets.
+        return error(ValidationError(
+            f"Plan {plan_id} has status '{current_status}' and cannot be approved"
+        ))
 
     # Set the plan status to approved
     approved_at = datetime.now(UTC).isoformat()

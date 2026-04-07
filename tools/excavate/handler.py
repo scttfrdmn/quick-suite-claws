@@ -23,6 +23,7 @@ from tools.shared import (
     store_result,
     store_result_metadata,
     success,
+    validate_source_id,
 )
 
 
@@ -67,9 +68,16 @@ def handler(event: dict, context: Any) -> dict:
     if not source_id or not query or not query_type:
         return error("source_id, query, and query_type are required")
 
+    try:
+        validate_source_id(source_id)
+    except ValueError as exc:
+        return error(str(exc))
+
     # Validate against stored plan if plan_id is provided
+    loaded_plan: dict | None = None
     if plan_id:
         plan = load_plan(plan_id)
+        loaded_plan = plan
         if plan is None:
             return error(NotFoundError(f"Plan {plan_id} not found"))
 
@@ -140,6 +148,19 @@ def handler(event: dict, context: Any) -> dict:
             "error": exec_result.get("error"),
         }, request_id=request_id)
         return error(exec_result["error"], status_code=500)
+
+    # Column-level post-filter: strip any columns not in the plan's allowed_columns list.
+    # Defence-in-depth — even if the LLM generated SQL referencing a restricted column
+    # (which it should not, since probe only showed it public columns), the result is
+    # stripped before guardrails scan and before S3 write.
+    if loaded_plan is not None and exec_result.get("rows"):
+        allowed = loaded_plan.get("allowed_columns")
+        if allowed is not None:
+            allowed_set = set(allowed)
+            exec_result["rows"] = [
+                {k: v for k, v in row.items() if k in allowed_set}
+                for row in exec_result["rows"]
+            ]
 
     # Scan results for PII/PHI via ApplyGuardrail before returning
     if exec_result.get("rows"):

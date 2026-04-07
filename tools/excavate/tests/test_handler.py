@@ -339,7 +339,7 @@ class TestOpenSearchExecutor:
             run_id="run-00000003",
         )
         assert result["status"] == "error"
-        assert "not valid JSON" in result["error"]
+        assert "JSON" in result["error"]
 
     def test_execute_bad_source_id(self):
         from tools.excavate.executors.opensearch import execute_opensearch
@@ -350,7 +350,7 @@ class TestOpenSearchExecutor:
             run_id="run-00000004",
         )
         assert result["status"] == "error"
-        assert "Invalid opensearch source_id" in result["error"]
+        assert "OpenSearch source_id" in result["error"]
 
     def test_handler_routes_opensearch_dsl(self, aws_resources, monkeypatch):
         """Excavate handler routes opensearch_dsl query_type to execute_opensearch."""

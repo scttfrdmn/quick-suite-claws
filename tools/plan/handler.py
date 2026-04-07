@@ -24,6 +24,7 @@ from tools.shared import (
     new_plan_id,
     store_plan,
     success,
+    validate_source_id,
 )
 
 MODEL_ID = os.environ.get("CLAWS_PLAN_MODEL_ID", "anthropic.claude-sonnet-4-20250514-v1:0")
@@ -36,13 +37,40 @@ def handler(event: dict, context: Any) -> dict:
     source_id = body.get("source_id", "")
     constraints = body.get("constraints", {})
     team_id = body.get("team_id")
-    principal = event.get("requestContext", {}).get("authorizer", {}).get("principalId", "unknown")
+    authorizer = event.get("requestContext", {}).get("authorizer", {})
+    principal = authorizer.get("principalId", "unknown")
+    # Principal roles are set by Cognito user pool groups and injected by API Gateway
+    # authorizer. Used to determine column-level visibility access.
+    principal_roles: list[str] = json.loads(authorizer.get("roles", "[]"))
     request_id = event.get("requestContext", {}).get("requestId", "")
 
     if not objective:
         return error("objective is required")
     if not source_id:
         return error("source_id is required")
+
+    try:
+        validate_source_id(source_id)
+    except ValueError as exc:
+        return error(str(exc))
+
+    # Determine query type from source_id backend (needed for early validation)
+    backend = source_id.split(":")[0]
+    query_type = _backend_to_query_type(backend)
+
+    # Validate that MCP source_ids reference a registered server before any schema lookup.
+    # The executor resolves the actual endpoint from the registry — never from user input —
+    # so an unregistered server name would silently fail at execution time. Catching it here
+    # gives a clear error and prevents plans with invalid source_ids from being stored.
+    if query_type == "mcp_tool":
+        from tools.mcp.registry import known_servers  # noqa: PLC0415
+        server_name = source_id[6:].split("/")[0]  # strip "mcp://"
+        if server_name not in known_servers():
+            return error(
+                f"MCP server '{server_name}' is not registered in the MCP registry. "
+                "Verify CLAWS_MCP_SERVERS_CONFIG includes this server.",
+                status_code=422,
+            )
 
     # Load cached schema from a prior probe call
     schema = get_cached_schema(source_id)
@@ -52,9 +80,13 @@ def handler(event: dict, context: Any) -> dict:
             status_code=422,
         )
 
-    # Determine query type from source_id backend
-    backend = source_id.split(":")[0]
-    query_type = _backend_to_query_type(backend)
+    # Filter schema columns to those visible to this principal.
+    # Columns tagged visibility=phi require the "phi_cleared" role.
+    # Columns tagged visibility=restricted require the "pii_access" role.
+    # Columns tagged visibility=public (or untagged) are always visible.
+    # The filtered schema is passed to the LLM — it cannot generate queries
+    # referencing columns it was never shown.
+    schema, allowed_columns = _filter_schema_columns(schema, principal_roles)
 
     # Build the prompt
     prompt = _build_plan_prompt(objective, source_id, schema, constraints, query_type)
@@ -173,6 +205,10 @@ def handler(event: dict, context: Any) -> dict:
     }
     if team_id:
         plan["team_id"] = team_id
+    # Store the visible column list so excavate can post-filter results as defence-in-depth.
+    # None means "no column restrictions applied" (all columns public or backend has no schema).
+    if allowed_columns is not None:
+        plan["allowed_columns"] = allowed_columns
     store_plan(plan_id, plan)
 
     response_body = {
@@ -203,6 +239,47 @@ def handler(event: dict, context: Any) -> dict:
     }, request_id=request_id)
 
     return success(response_body)
+
+
+def _filter_schema_columns(
+    schema: dict, principal_roles: list[str]
+) -> tuple[dict, list[str] | None]:
+    """Return a filtered copy of schema visible to this principal, plus the allowed column names.
+
+    Visibility levels:
+      "public"     — always visible
+      "restricted" — requires "pii_access" role
+      "phi"        — requires "phi_cleared" role
+
+    Returns:
+        (filtered_schema, allowed_columns) where allowed_columns is None if no
+        column classification is present (i.e. all columns are implicitly public).
+    """
+    columns = schema.get("columns", [])
+    if not columns:
+        return schema, None
+
+    # Check if any column has a non-public visibility tag
+    has_restricted = any(col.get("visibility", "public") != "public" for col in columns)
+    if not has_restricted:
+        # No restricted columns — return schema unchanged, no filtering needed
+        return schema, None
+
+    can_access_phi = "phi_cleared" in principal_roles
+    can_access_pii = "pii_access" in principal_roles or can_access_phi
+
+    visible_columns = []
+    for col in columns:
+        vis = col.get("visibility", "public")
+        if vis == "phi" and not can_access_phi:
+            continue
+        if vis == "restricted" and not can_access_pii:
+            continue
+        visible_columns.append(col)
+
+    allowed_names = [col["name"] for col in visible_columns]
+    filtered = {**schema, "columns": visible_columns}
+    return filtered, allowed_names
 
 
 def _backend_to_query_type(backend: str) -> str:

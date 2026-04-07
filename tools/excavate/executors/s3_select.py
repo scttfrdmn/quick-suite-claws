@@ -9,6 +9,16 @@ import json
 
 from tools.shared import s3_client
 
+_MUTATION_KEYWORDS = frozenset({"INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "TRUNCATE", "ALTER"})
+
+
+def _check_mutation(query: str) -> None:
+    """Raise ValueError if the query is a write/mutation statement."""
+    first_word = query.strip().split()[0].upper() if query.strip() else ""
+    if first_word in _MUTATION_KEYWORDS:
+        raise ValueError(f"Mutation query '{first_word}' not allowed — claws is read-only")
+
+
 # S3 Select pricing
 _PRICE_PER_BYTE_SCANNED = 0.002 / (1024 ** 3)   # $0.002 / GB scanned
 _PRICE_PER_BYTE_RETURNED = 0.0007 / (1024 ** 3)  # $0.0007 / GB returned
@@ -79,6 +89,11 @@ def execute_s3_select(
             "status": "error",
             "error": f"Invalid S3 source_id (missing bucket or key): {source_id}",
         }
+
+    try:
+        _check_mutation(query)
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
 
     input_ser = _input_serialization(key, constraints)
 

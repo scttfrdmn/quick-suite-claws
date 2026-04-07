@@ -5,9 +5,16 @@ Uses table metadata (size, partitioning) and query structure
 to predict bytes scanned and dollar cost.
 """
 
+import math
+
 # Athena pricing: $5 per TB scanned, 10 MB minimum
 ATHENA_PRICE_PER_BYTE = 5.0 / (1024 ** 4)  # $5/TB
 ATHENA_MIN_BYTES = 10 * 1024 * 1024  # 10 MB minimum charge
+
+# DynamoDB on-demand pricing: $0.25 per million read request units (RRUs)
+# 1 RRU = 1 strongly consistent read of up to 4 KB
+_DYNAMODB_PRICE_PER_RRU = 0.25 / 1_000_000  # $0.00000025/RRU
+_DYNAMODB_RRU_SIZE_BYTES = 4096  # 4 KB per RRU
 
 
 def estimate_cost(source_id: str, query: str, schema: dict) -> dict:
@@ -34,6 +41,10 @@ def estimate_cost(source_id: str, query: str, schema: dict) -> dict:
         return _estimate_opensearch(query, schema)
     elif backend == "s3":
         return _estimate_s3_select(query, schema)
+    elif backend == "dynamodb":
+        return _estimate_dynamodb(query, schema)
+    elif backend == "mcp":
+        return _estimate_mcp(query, schema)
     else:
         return {
             "estimated_bytes_scanned": 0,
@@ -123,4 +134,54 @@ def _estimate_s3_select(query: str, schema: dict) -> dict:
         "estimated_cost_dollars": round(scanned_cost, 4),
         "confidence": "medium",
         "notes": "S3 Select pricing: $0.002/GB scanned + $0.0007/GB returned.",
+    }
+
+
+def _estimate_dynamodb(query: str, schema: dict) -> dict:
+    """Estimate DynamoDB PartiQL query cost.
+
+    DynamoDB on-demand pricing: $0.25 per million read request units.
+    1 RRU covers one strongly consistent read of up to 4 KB.
+    For scan-type PartiQL queries (no KeyConditionExpression pushed down),
+    the full table is read. Filtered queries may read significantly less,
+    but the DynamoDB query planner does not expose a cost estimate pre-execution.
+
+    Confidence is always "low" because:
+    - PartiQL filter predicates may or may not be pushed down to the key condition
+    - GSI access patterns significantly affect scan scope
+    - Table size metadata may be stale (DynamoDB updates statistics every 6 hours)
+    """
+    row_count = int(schema.get("row_count_estimate", 10_000))
+    # avg_item_size_bytes may be in schema or fall back to 512 bytes
+    avg_bytes = int(schema.get("avg_item_size_bytes", 512))
+    total_bytes = row_count * avg_bytes
+    rrus = math.ceil(total_bytes / _DYNAMODB_RRU_SIZE_BYTES)
+    cost = rrus * _DYNAMODB_PRICE_PER_RRU
+    return {
+        "estimated_bytes_scanned": total_bytes,
+        "estimated_cost_dollars": round(cost, 6),
+        "confidence": "low",
+        "notes": (
+            f"DynamoDB on-demand: ~{rrus:,} RRUs estimated (full scan, "
+            f"{row_count:,} rows × {avg_bytes} bytes avg). "
+            "Filtered queries with key conditions will cost less."
+        ),
+    }
+
+
+def _estimate_mcp(query: str, schema: dict) -> dict:
+    """Estimate MCP tool call cost.
+
+    MCP tool calls invoke an external server. There is no AWS-side per-call charge
+    beyond the Lambda execution time (covered by Lambda pricing). The cost of the
+    MCP server itself depends on the server provider's pricing and is outside AWS.
+    """
+    return {
+        "estimated_bytes_scanned": 0,
+        "estimated_cost_dollars": 0.0,
+        "confidence": "high",
+        "notes": (
+            "MCP tool calls have no per-call AWS cost. "
+            "External MCP server pricing depends on the server provider."
+        ),
     }

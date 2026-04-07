@@ -14,6 +14,15 @@ from boto3.dynamodb.types import TypeDeserializer
 _dynamodb = None
 _deser = TypeDeserializer()
 
+_MUTATION_KEYWORDS = frozenset({"INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "TRUNCATE", "ALTER"})
+
+
+def _check_mutation(query: str) -> None:
+    """Raise ValueError if the query is a write/mutation statement."""
+    first_word = query.strip().split()[0].upper() if query.strip() else ""
+    if first_word in _MUTATION_KEYWORDS:
+        raise ValueError(f"Mutation query '{first_word}' not allowed — claws is read-only")
+
 
 def _client():
     global _dynamodb
@@ -43,6 +52,11 @@ def execute_dynamodb(
         return {"status": "error", "error": f"Invalid dynamodb source_id: {source_id}"}
 
     max_rows = min(int(constraints.get("max_rows", 1000)), 1000)
+
+    try:
+        _check_mutation(query)
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
 
     try:
         rows: list[dict] = []

@@ -17,7 +17,7 @@ import boto3
 import pytest
 
 from tools.approve_plan.handler import handler as approve_plan_handler
-from tools.audit_export.handler import _sanitise_record, _sha256_of
+from tools.audit_export.handler import _hmac_sha256_of, _sanitise_record
 from tools.audit_export.handler import handler as audit_export_handler
 from tools.excavate.handler import handler as excavate_handler
 from tools.shared import cache_schema, store_plan
@@ -170,6 +170,7 @@ class TestApprovePlan:
             "query_type": "athena_sql",
             "created_by": "researcher2",
             "status": "pending_approval",
+            "requires_irb": True,
         })
         yield
 
@@ -425,11 +426,12 @@ class TestAuditExport:
         record = _sanitise_record(raw)
         assert record["guardrail_trace"] is False
 
-    def test_sha256_of_is_deterministic(self):
-        """_sha256_of returns the same hash for the same input."""
+    def test_hmac_sha256_of_is_deterministic(self):
+        """_hmac_sha256_of returns the same hash for the same input and key."""
         obj = {"key": "value", "num": 42}
-        h1 = _sha256_of(obj)
-        h2 = _sha256_of(obj)
+        with patch("tools.audit_export.handler._get_hmac_key", return_value=b"stable-key"):
+            h1 = _hmac_sha256_of(obj)
+            h2 = _hmac_sha256_of(obj)
         assert h1 == h2
         assert len(h1) == 64
 

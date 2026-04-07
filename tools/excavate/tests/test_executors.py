@@ -352,10 +352,10 @@ class TestOpenSearchExecutor:
             run_id="run-os0004",
         )
         assert result["status"] == "error"
-        assert "not valid JSON" in result["error"]
+        assert "JSON" in result["error"]
 
     def test_execute_opensearch_connection_error(self, monkeypatch):
-        """Client exception returns status=error."""
+        """Client exception returns sanitized status=error (no internal details)."""
         mock = MagicMock()
         mock.search.side_effect = Exception("connection refused")
         monkeypatch.setattr(_os_mod, "_os_client", lambda endpoint: mock)
@@ -367,7 +367,7 @@ class TestOpenSearchExecutor:
             run_id="run-os0005",
         )
         assert result["status"] == "error"
-        assert "connection refused" in result["error"]
+        assert "connection refused" not in result["error"]  # sanitized
 
     def test_execute_opensearch_invalid_source_id(self):
         result = execute_opensearch(

@@ -10,13 +10,39 @@ Substrate does not support OpenSearch — tests mock _os_client() directly.
 """
 
 import json
+import logging
 import os
 from typing import Any
 
 import boto3
 
+logger = logging.getLogger(__name__)
+
 # Cached OpenSearch clients keyed by endpoint — one per domain per Lambda lifetime
 OS_CLIENT: dict[str, Any] = {}
+
+# DSL keys that enable server-side script execution (Groovy/Painless) (#76)
+_FORBIDDEN_DSL_KEYS = frozenset({"script", "scripted_metric", "scripted_sort"})
+
+
+def _check_dsl_scripts(obj: Any, depth: int = 0) -> None:
+    """Raise ValueError if the DSL body contains script execution fields.
+
+    Recursively walks the query dict up to depth 20.
+    Forbidden keys: 'script', 'scripted_metric', 'scripted_sort'.
+    """
+    if depth > 20:
+        return
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if key in _FORBIDDEN_DSL_KEYS:
+                raise ValueError(
+                    f"Script execution field '{key}' is not allowed in OpenSearch DSL"
+                )
+            _check_dsl_scripts(value, depth + 1)
+    elif isinstance(obj, list):
+        for item in obj:
+            _check_dsl_scripts(item, depth + 1)
 
 
 def _parse_source_id(source_id: str) -> tuple[str, str]:
@@ -128,14 +154,14 @@ def execute_opensearch(
     """
     try:
         endpoint, index = _parse_source_id(source_id)
-    except ValueError as e:
-        return {"status": "error", "error": str(e)}
+    except ValueError:
+        return {"status": "error", "error": "Invalid OpenSearch source_id format — expected 'opensearch:host/index'"}
 
     if isinstance(query, str):
         try:
             query_body: dict = json.loads(query)
-        except json.JSONDecodeError as e:
-            return {"status": "error", "error": f"query is not valid JSON: {e}"}
+        except json.JSONDecodeError:
+            return {"status": "error", "error": "OpenSearch query must be valid JSON DSL"}
     elif isinstance(query, dict):
         query_body = query
     else:
@@ -143,6 +169,12 @@ def execute_opensearch(
             "status": "error",
             "error": f"query must be a JSON string or dict, got {type(query).__name__}",
         }
+
+    # Block server-side script execution fields in the DSL body (#76)
+    try:
+        _check_dsl_scripts(query_body)
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
 
     # read_only: block mutation operations in the DSL body
     if constraints.get("read_only"):
@@ -175,7 +207,8 @@ def execute_opensearch(
                 "status": "timeout",
                 "error": f"OpenSearch query timed out after {timeout_seconds}s",
             }
-        return {"status": "error", "error": f"OpenSearch search failed: {e}"}
+        logger.debug("OpenSearch search exception: %s", e)
+        return {"status": "error", "error": "OpenSearch query failed"}
 
     # Aggregation response takes priority over hits
     aggs = response.get("aggregations", {})

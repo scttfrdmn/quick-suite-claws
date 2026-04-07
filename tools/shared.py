@@ -1,6 +1,7 @@
 """clAWS shared utilities for Lambda handlers."""
 
 import json
+import logging
 import os
 import time
 import uuid
@@ -8,6 +9,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import boto3
+
+logger = logging.getLogger(__name__)
 
 # Clients — initialized once per Lambda cold start
 _s3 = None
@@ -118,6 +121,41 @@ WATCHES_TABLE = os.environ.get("CLAWS_WATCHES_TABLE", "claws-watches")
 GUARDRAIL_ID = os.environ.get("CLAWS_GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("CLAWS_GUARDRAIL_VERSION", "DRAFT")
 METRICS_NAMESPACE = os.environ.get("CLAWS_METRICS_NAMESPACE", "")
+
+# Warn at module load time if guardrail is unconfigured (#77)
+if not GUARDRAIL_ID:
+    logger.warning(
+        "CLAWS_GUARDRAIL_ID is not configured — guardrail scanning will be bypassed. "
+        "All scan_payload() calls will return status='bypassed'."
+    )
+
+# --- source_id validation (#78) ---
+
+_SOURCE_ID_PREFIXES = frozenset(
+    {"athena:", "dynamodb:", "s3:", "opensearch:", "mcp:", "registry:"}
+)
+_SOURCE_ID_MAX_LEN = 512
+
+
+def validate_source_id(source_id: str) -> None:
+    """Validate that source_id is well-formed and safe for use in storage keys.
+
+    Raises ValueError with a descriptive message on any violation.
+    """
+    if not source_id:
+        raise ValueError("source_id is required")
+    if len(source_id) > _SOURCE_ID_MAX_LEN:
+        raise ValueError(
+            f"source_id exceeds maximum length of {_SOURCE_ID_MAX_LEN} characters"
+        )
+    if ".." in source_id:
+        raise ValueError("source_id contains invalid path traversal sequence")
+    if "\x00" in source_id or any(ord(c) < 32 for c in source_id):
+        raise ValueError("source_id contains invalid control characters")
+    if not any(source_id.startswith(p) for p in _SOURCE_ID_PREFIXES):
+        raise ValueError(
+            f"source_id must start with a known prefix: {sorted(_SOURCE_ID_PREFIXES)}"
+        )
 
 
 # --- ID generation ---
@@ -425,9 +463,14 @@ def apply_guardrail(content: str, source: str = "OUTPUT") -> dict:
 
     Returns:
         {"action": "NONE" | "GUARDRAIL_INTERVENED", "assessments": [...]}
+        When GUARDRAIL_ID is unconfigured, returns with "bypassed": True (#77).
     """
     if not GUARDRAIL_ID:
-        return {"action": "NONE", "assessments": []}
+        logger.error(
+            "apply_guardrail called but CLAWS_GUARDRAIL_ID is not configured — "
+            "guardrail check bypassed"
+        )
+        return {"action": "NONE", "assessments": [], "bypassed": True}
 
     response = bedrock_runtime().apply_guardrail(
         guardrailIdentifier=GUARDRAIL_ID,
@@ -442,8 +485,23 @@ def apply_guardrail(content: str, source: str = "OUTPUT") -> dict:
 
 
 def scan_payload(payload: Any, max_chunk_chars: int = 25000) -> dict:
-    """Scan a JSON-serializable payload in chunks. Returns
-    {"status": "clean"|"blocked"|"masked", "payload": ...}."""
+    """Scan a JSON-serializable payload in chunks.
+
+    Returns:
+        {"status": "clean"|"blocked"|"bypassed", "payload": ...}
+
+    When GUARDRAIL_ID is unconfigured, returns status="bypassed" instead of
+    "clean" so callers can distinguish a real clean scan from an unconfigured
+    one (#77). All existing callers check status=="blocked" only, so this is
+    backward-compatible.
+    """
+    if not GUARDRAIL_ID:
+        logger.error(
+            "scan_payload called but CLAWS_GUARDRAIL_ID is not configured — "
+            "guardrail scanning bypassed"
+        )
+        return {"status": "bypassed", "payload": payload}
+
     text = json.dumps(payload, default=str)
 
     if len(text) <= max_chunk_chars:

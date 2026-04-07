@@ -13,6 +13,12 @@ from aws_cdk import (
     aws_lambda as _lambda,
 )
 from aws_cdk import (
+    aws_secretsmanager as secretsmanager,
+)
+from aws_cdk import (
+    aws_logs as logs,
+)
+from aws_cdk import (
     aws_ssm as ssm,
 )
 from constructs import Construct
@@ -100,10 +106,8 @@ class ClawsToolsStack(cdk.Stack):
             resources=["*"],
         ))
 
-        # Athena read-only in the claws workgroup.
-        # Use the workgroup ARN as the resource instead of a condition key.
-        # The athena:workGroup condition key is not reliably enforced by IAM
-        # for StartQueryExecution with Athena engine v3 + Resource:"*".
+        # Athena read-only in the claws workgroup — scoped to workgroup ARN.
+        # Restricts Lambda to the 5 GB byte-scan-limit workgroup only.
         lambda_role.add_to_policy(iam.PolicyStatement(
             effect=iam.Effect.ALLOW,
             actions=[
@@ -111,8 +115,11 @@ class ClawsToolsStack(cdk.Stack):
                 "athena:StopQueryExecution",
                 "athena:GetQueryExecution",
                 "athena:GetQueryResults",
+                "athena:GetWorkGroup",
             ],
-            resources=["*"],
+            resources=[
+                f"arn:aws:athena:{self.region}:{self.account}:workgroup/claws-readonly",
+            ],
         ))
 
         # Bedrock access for plan and refine (model invocation + guardrails)
@@ -183,6 +190,7 @@ class ClawsToolsStack(cdk.Stack):
                 environment=shared_env,
                 timeout=cdk.Duration.seconds(60),
                 memory_size=512,
+                log_retention=logs.RetentionDays.THREE_MONTHS,
             )
             self.functions[tool_name] = fn
 
@@ -228,8 +236,26 @@ class ClawsToolsStack(cdk.Stack):
                 },
                 timeout=cdk.Duration.seconds(300),  # audit_export may scan many log streams
                 memory_size=512,
+                log_retention=logs.RetentionDays.THREE_MONTHS,
             )
             self.functions[internal_name] = fn
+
+        # audit_export: HMAC key secret for irreversible audit record hashing (issue #73)
+        audit_hmac_secret = secretsmanager.Secret(
+            self,
+            "ClawsAuditHmacSecret",
+            secret_name="claws/audit-hmac-key",
+            description="HMAC-SHA-256 key for clAWS audit_export record hashing",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                password_length=64,
+                exclude_punctuation=True,
+            ),
+        )
+        if "audit_export" in self.functions:
+            self.functions["audit_export"].add_environment(
+                "AUDIT_HMAC_KEY_ARN", audit_hmac_secret.secret_arn
+            )
+            audit_hmac_secret.grant_read(self.functions["audit_export"])
 
         # audit_export: grant CloudWatch Logs read and S3 write to the export bucket
         if "audit_export" in self.functions:

@@ -3,6 +3,8 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from tools.plan.handler import handler
 from tools.shared import load_plan
 
@@ -133,6 +135,11 @@ _MCP_QUERY = json.dumps({
 
 
 class TestPlanMcp:
+    @pytest.fixture(autouse=True)
+    def _patch_mcp_registry(self):
+        with patch("tools.mcp.registry.known_servers", return_value={"postgres-prod"}):
+            yield
+
     def test_mcp_skips_sql_validator(self, plans_table, schemas_table):
         """MCP plans bypass SQL validation — query_type is mcp_tool."""
         _seed_schema(schemas_table, "mcp://postgres-prod/public.users", MCP_SCHEMA)

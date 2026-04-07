@@ -203,7 +203,17 @@ components:
           type: string
         schema:
           type: object
-          description: Column definitions with types
+          description: >
+            Column definitions with types. Each column entry includes a
+            `visibility` field: "public" (default), "restricted" (requires
+            pii_access role), or "phi" (requires phi_cleared role). The plan
+            tool uses visibility to filter the schema before LLM prompt
+            construction.
+        column_classifications:
+          type: object
+          description: >
+            Summary of column visibility counts for the source.
+            Example: {"public": 8, "restricted": 2, "phi": 1}
         samples:
           type: array
           items:
@@ -266,6 +276,15 @@ components:
           type: integer
         output_schema:
           type: object
+        allowed_columns:
+          type: array
+          items:
+            type: string
+          description: >
+            Column names visible to the requesting principal. Present when the
+            source has column-level visibility restrictions. The excavate tool
+            post-filters results to this list as defence-in-depth. Absent when
+            all columns are public.
 
     PlanStep:
       type: object

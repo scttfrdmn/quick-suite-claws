@@ -61,6 +61,7 @@ class ClawsStorageStack(cdk.Stack):
             removal_policy=RemovalPolicy.DESTROY,
             time_to_live_attribute="ttl",
             point_in_time_recovery=True,
+            deletion_protection=True,
         )
 
         # DynamoDB table for cached schemas (TTL-enabled)
@@ -74,6 +75,8 @@ class ClawsStorageStack(cdk.Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
             time_to_live_attribute="ttl",
+            point_in_time_recovery=True,
+            deletion_protection=True,
         )
 
         # DynamoDB table for scheduled watches (TTL-enabled)
@@ -87,6 +90,8 @@ class ClawsStorageStack(cdk.Stack):
             billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
             removal_policy=RemovalPolicy.DESTROY,
             time_to_live_attribute="ttl",
+            point_in_time_recovery=True,
+            deletion_protection=True,
         )
 
         # Outputs

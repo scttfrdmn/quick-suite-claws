@@ -85,6 +85,11 @@ def handler(event: dict, context: Any) -> dict:
             rows = _normalize(rows)
         elif op_name == "summarize":
             rows = _summarize(rows, run_id, top_k)
+            # Scan the LLM-generated summary text through ApplyGuardrail (#82)
+            if isinstance(rows, dict) and rows.get("text") and GUARDRAIL_ID:
+                summary_scan = scan_payload([{"summary": rows["text"]}])
+                if summary_scan.get("status") == "blocked":
+                    rows = {**rows, "text": "[Summary blocked by content policy]"}
 
         after_count = len(rows) if isinstance(rows, list) else 1
         manifest["operations"].append({

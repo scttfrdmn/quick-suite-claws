@@ -22,9 +22,11 @@ Output record schema per line:
 """
 
 import hashlib
+import hmac
 import json
 import os
 from datetime import UTC, datetime
+from functools import lru_cache
 from typing import Any
 
 import boto3
@@ -162,10 +164,39 @@ def _fetch_audit_records(start_dt: datetime, end_dt: datetime) -> list[dict]:
     return records
 
 
-def _sha256_of(obj: Any) -> str:
-    """Return the SHA-256 hex digest of the canonical JSON representation."""
-    canonical = json.dumps(obj, sort_keys=True, default=str)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+@lru_cache(maxsize=1)
+def _get_hmac_key() -> bytes:
+    """Fetch the HMAC key from Secrets Manager (cached for Lambda warm instance lifetime).
+
+    Returns the raw key bytes. Falls back to a fixed sentinel when
+    AUDIT_HMAC_KEY_ARN is not set — this disables HMAC protection and should
+    only occur in development/test environments.
+    """
+    arn = os.environ.get("AUDIT_HMAC_KEY_ARN", "")
+    if not arn:
+        # No key configured — caller can detect this via the _hmac_key_configured flag
+        return b""
+    sm = boto3.client("secretsmanager")
+    val = sm.get_secret_value(SecretId=arn)
+    return val["SecretString"].encode("utf-8")
+
+
+def _hmac_sha256_of(obj: Any) -> str:
+    """Return an HMAC-SHA-256 hex digest of the canonical JSON representation.
+
+    Uses the per-deployment secret from Secrets Manager. Without the key, the
+    digest cannot be reconstructed from the record alone — preventing rainbow-table
+    inversion of short inputs (query strings, column names, principal IDs).
+
+    Falls back to plain SHA-256 when AUDIT_HMAC_KEY_ARN is not configured
+    (development/test only — production deployments must set the key).
+    """
+    canonical = json.dumps(obj, sort_keys=True, default=str).encode("utf-8")
+    key = _get_hmac_key()
+    if not key:
+        # Fallback: plain SHA-256 (no key available)
+        return hashlib.sha256(canonical).hexdigest()
+    return hmac.new(key, canonical, hashlib.sha256).hexdigest()
 
 
 def _sanitise_record(record: dict) -> dict:
@@ -182,8 +213,8 @@ def _sanitise_record(record: dict) -> dict:
     return {
         "principal": record.get("principal", ""),
         "tool": record.get("tool", ""),
-        "inputs_hash": _sha256_of(inputs),
-        "outputs_hash": _sha256_of(outputs),
+        "inputs_hash": _hmac_sha256_of(inputs),
+        "outputs_hash": _hmac_sha256_of(outputs),
         "cost_usd": float(cost) if cost is not None else None,
         "guardrail_trace": bool(guardrail_trace),
         "timestamp": record.get("timestamp", ""),
