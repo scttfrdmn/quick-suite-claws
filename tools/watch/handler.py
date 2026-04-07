@@ -135,13 +135,21 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
 
     # Validate watch type
     watch_type = body.get("type", "alert")
-    if watch_type not in ("alert", "feed"):
-        return error(f"type must be 'alert' or 'feed', got: {watch_type!r}")
+    if watch_type not in ("alert", "feed", "new_award"):
+        return error(f"type must be 'alert', 'feed', or 'new_award', got: {watch_type!r}")
 
     # feed watches require a dedup_key
     feed_dedup_key = body.get("feed_dedup_key", "")
     if watch_type == "feed" and not feed_dedup_key:
         return error("feed_dedup_key is required for feed watches")
+
+    # new_award watches require semantic_match with lab_profile_ssm_key
+    semantic_match = body.get("semantic_match")
+    if watch_type == "new_award":
+        if not semantic_match or not isinstance(semantic_match, dict):
+            return error("semantic_match is required for new_award watches")
+        if not semantic_match.get("lab_profile_ssm_key"):
+            return error("semantic_match.lab_profile_ssm_key is required for new_award watches")
 
     spec = {
         "plan_id": plan_id,
@@ -162,6 +170,8 @@ def _create(body: dict, principal: str, request_id: str) -> dict:
     if watch_type == "feed":
         spec["feed_dedup_key"] = feed_dedup_key
         spec["feed_result_uri"] = None  # filled by runner after first run
+    if watch_type == "new_award" and semantic_match:
+        spec["semantic_match"] = semantic_match
     # Denormalize team_id from plan at watch creation so watches can be filtered by team
     if plan.get("team_id"):
         spec["team_id"] = plan["team_id"]

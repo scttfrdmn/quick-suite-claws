@@ -10,14 +10,18 @@ feed_result_uri on the watch spec and passed as result_s3_uri to the next run.
 """
 
 import json
+import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
+
+import boto3
 
 from tools.excavate.handler import EXECUTORS, _infer_schema
 from tools.shared import (
     RUNS_BUCKET,
     audit_log,
+    call_router,
     load_plan,
     load_watch,
     new_run_id,
@@ -28,6 +32,91 @@ from tools.shared import (
 
 # Maximum consecutive executor errors before a watch is paused
 MAX_CONSECUTIVE_ERRORS = int(os.environ.get("CLAWS_WATCH_MAX_ERRORS", "3"))
+
+# Cap on awards scored per new_award watch run (prevents runaway Router spend)
+_NEW_AWARD_MAX_ROWS = 50
+
+_ssm_client: Any = None
+
+
+def _ssm() -> Any:
+    global _ssm_client
+    if _ssm_client is None:
+        _ssm_client = boto3.client("ssm")
+    return _ssm_client
+
+
+def _run_new_award_semantic_match(rows: list, cfg: dict) -> list:
+    """Score each award row for semantic similarity to a lab profile via the Router.
+
+    Fetches the lab abstract from SSM, calls Router `summarize` per award (up to
+    _NEW_AWARD_MAX_ROWS rows), and returns rows whose similarity score meets or
+    exceeds the configured threshold. Router failures are non-blocking — a warning
+    is logged and the award is skipped.
+
+    Args:
+        rows: Award rows from the excavation result.
+        cfg: semantic_match config dict from the watch spec. Required key:
+             "lab_profile_ssm_key" (SSM parameter path). Optional:
+             "abstract_similarity_threshold" (float, default 0.82).
+             "abstract_field" (str, default "abstract_text" or "AbstractText").
+
+    Returns:
+        List of matching rows sorted by similarity descending.
+    """
+    ssm_key = cfg.get("lab_profile_ssm_key", "")
+    threshold = float(cfg.get("abstract_similarity_threshold", 0.82))
+    abstract_field = cfg.get("abstract_field", "")
+
+    # Fetch lab profile from SSM
+    try:
+        param = _ssm().get_parameter(Name=ssm_key)
+        lab_abstract = param["Parameter"]["Value"]
+    except Exception as exc:
+        logging.warning(json.dumps({
+            "msg": "new_award: lab profile SSM fetch failed",
+            "ssm_key": ssm_key,
+            "error": str(exc),
+        }))
+        return []
+
+    matches = []
+    for row in rows[:_NEW_AWARD_MAX_ROWS]:
+        # Find abstract field: try explicit cfg, then common names
+        if abstract_field:
+            award_abstract = str(row.get(abstract_field, ""))
+        else:
+            award_abstract = str(
+                row.get("abstract_text")
+                or row.get("AbstractText")
+                or row.get("abstract")
+                or ""
+            )
+
+        prompt = (
+            f"Rate the semantic similarity between the following two texts on a scale "
+            f"of 0.0 to 1.0, where 1.0 is identical in meaning. "
+            f"Reply with ONLY the numeric score, nothing else.\n\n"
+            f"LAB PROFILE:\n{lab_abstract[:2000]}\n\n"
+            f"AWARD ABSTRACT:\n{award_abstract[:2000]}"
+        )
+        try:
+            response_text = call_router("summarize", prompt, max_tokens=10)
+            if response_text is None:
+                raise ValueError("Router not configured or returned None")
+            score = float(response_text.strip().split()[0])
+        except Exception as exc:
+            logging.warning(json.dumps({
+                "msg": "new_award: Router similarity scoring failed; skipping award",
+                "error": str(exc),
+            }))
+            continue
+
+        if score >= threshold:
+            matches.append({**row, "_similarity_score": score})
+
+    matches.sort(key=lambda r: r.get("_similarity_score", 0.0), reverse=True)
+    return matches
 
 
 def handler(event: dict, context: Any) -> dict:
@@ -110,8 +199,18 @@ def handler(event: dict, context: Any) -> dict:
         triggered = _evaluate_condition(condition, rows)
     triggered_at = now if triggered else watch.get("last_triggered_at")
 
+    # New-award semantic match: score rows by similarity to lab profile
+    new_award_matches: list = []
+    if watch.get("type") == "new_award":
+        semantic_cfg = watch.get("semantic_match", {})
+        new_award_matches = _run_new_award_semantic_match(rows, semantic_cfg)
+        # Override triggered: only fire if there are semantically matching awards
+        triggered = bool(new_award_matches)
+        triggered_at = now if triggered else watch.get("last_triggered_at")
+
     if triggered and watch.get("notification_target"):
-        _fire_notification(watch["notification_target"], run_id, rows, watch_id)
+        notify_rows = new_award_matches if watch.get("type") == "new_award" else rows
+        _fire_notification(watch["notification_target"], run_id, notify_rows, watch_id)
 
     watch_updates: dict = {
         "last_run_id": run_id,
@@ -133,6 +232,8 @@ def handler(event: dict, context: Any) -> dict:
     }
     if diff_summary is not None:
         audit_out["diff_summary"] = diff_summary
+    if new_award_matches:
+        audit_out["new_award_matches"] = len(new_award_matches)
 
     audit_log("watch-runner", "watch-scheduler", {"watch_id": watch_id}, audit_out)
 
@@ -144,6 +245,8 @@ def handler(event: dict, context: Any) -> dict:
     }
     if diff_summary is not None:
         result_out["diff_summary"] = diff_summary
+    if new_award_matches:
+        result_out["new_award_matches"] = len(new_award_matches)
     return result_out
 
 

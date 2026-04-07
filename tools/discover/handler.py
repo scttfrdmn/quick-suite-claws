@@ -117,6 +117,14 @@ def handler(event: dict, context: Any) -> dict:
     if "registry" in domains:
         sources.extend(_discover_registry(query, limit))
 
+    # Search NIH Reporter via registry entries of type nih_reporter
+    if "nih-reporter" in domains:
+        sources.extend(_discover_registry(query, limit, source_type_filter="nih_reporter"))
+
+    # Search NSF Awards via registry entries of type nsf_awards
+    if "nsf-awards" in domains:
+        sources.extend(_discover_registry(query, limit, source_type_filter="nsf_awards"))
+
     # Sort by confidence, apply limit
     sources.sort(key=lambda s: s.get("confidence", 0), reverse=True)
     sources = sources[:limit]
@@ -310,7 +318,7 @@ def _discover_mcp(query: str, spaces: list[str], limit: int) -> list[dict]:
     return sources
 
 
-def _discover_registry(query: str, limit: int) -> list[dict]:
+def _discover_registry(query: str, limit: int, source_type_filter: str | None = None) -> list[dict]:
     """Search the quick-suite-data source registry DynamoDB table.
 
     The table is populated by quick-suite-data's register-source Lambda and
@@ -335,6 +343,8 @@ def _discover_registry(query: str, limit: int) -> list[dict]:
         items = resp.get("Items", [])
 
         for item in items:
+            if source_type_filter and item.get("type") != source_type_filter:
+                continue
             name = str(item.get("name", item.get("source_id", ""))).lower()
             desc = str(item.get("description", "")).lower()
             tags = " ".join(str(t) for t in item.get("tags", [])).lower()

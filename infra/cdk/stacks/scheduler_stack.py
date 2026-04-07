@@ -68,6 +68,13 @@ class ClawsSchedulerStack(cdk.Stack):
             resources=["*"],
         ))
 
+        # SSM Parameter Store read — new_award watch fetches lab profile from SSM
+        runner_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["ssm:GetParameter"],
+            resources=[f"arn:aws:ssm:{cdk.Stack.of(self).region}:{cdk.Stack.of(self).account}:parameter/quick-suite/claws/*"],
+        ))
+
         # IAM role for EventBridge Scheduler to invoke the runner Lambda
         scheduler_invoke_role = iam.Role(
             self, "SchedulerInvokeRole",
