@@ -7,6 +7,33 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-04-07
+
+### Fixed
+- **Silent guardrail bypass when GUARDRAIL_ID unconfigured (#77):** `apply_guardrail()` now logs at ERROR level and returns `{"bypassed": True}` when `CLAWS_GUARDRAIL_ID` is empty; `scan_payload()` returns `{"status": "bypassed"}` instead of `{"status": "clean"}`; a startup warning is emitted at module load time; all existing callers check for `"blocked"` only and are unaffected
+- **source_id not validated before use (#78):** `validate_source_id()` added to `shared.py`; called at the top of `plan/handler.py` and `excavate/handler.py`; rejects empty values, path traversal (`..`), null bytes, control characters, values over 512 characters, and any value not starting with a known prefix (`athena:`, `dynamodb:`, `s3:`, `opensearch:`, `mcp:`, `registry:`)
+- **OpenSearch DSL script injection via aggregation body (#76):** `_check_dsl_scripts()` recursively walks the parsed DSL body before execution; `"script"`, `"scripted_metric"`, and `"scripted_sort"` fields at any nesting level (up to depth 20) are rejected with a clear error; Groovy/Painless server-side script execution via aggregation DSL is no longer possible
+- **Cedar plan.approve permit clause missing structural conditions (#75):** `policies/default.cedar` `plan.approve` permit now requires `resource.requires_irb == true && resource.status == "pending_approval"` in addition to the `irb_approver` role and self-approval block; Cedar is now authoritative for both the role check and the plan-state preconditions
+- 32 new security tests in `tools/tests/test_v14_security.py`
+
+## [0.12.0] - 2026-04-06
+
+### Added
+- **Column-level access control (#61):** `plan` filters schema by principal roles (`pii_access`, `phi_cleared`) before query generation; `excavate` post-filters result columns to `allowed_columns` from the plan; principals without clearance receive redacted column sets
+- **Multi-backend cost estimator (#62):** `tools/plan/validators/cost_estimator.py` extended with Athena ($0.005/GB scanned), DynamoDB (RCU-based), and MCP (per-request) pricing models; `estimate_cost()` dispatches by `query_type`
+- **HMAC-SHA-256 audit hashing (#73):** `audit_export` Lambda uses `_hmac_sha256_of()` + `_sanitise_record()` with a keyed secret from Secrets Manager (`claws/audit-hmac-key`); audit NDJSON contains irreversible hashes of `inputs` and `outputs` — no raw query text or results
+- **MCP source ID validation (#74):** `plan` validates that the MCP server name in `source_id` is present in the MCP registry before generating a query; returns a 400 error with available server names if the server is unregistered
+- **Mutation detection in DynamoDB and S3 Select executors (#81):** Both `dynamodb.py` and `s3_select.py` now call `_check_mutation()` before executing any query; `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `TRUNCATE`, and `ALTER` statements are rejected with a clear read-only error rather than forwarded to AWS
+- **Refine summary guardrail scan (#82):** The LLM-generated summary text returned by `_summarize()` in `tools/refine/handler.py` is now scanned through `ApplyGuardrail` before being returned; blocked summaries are replaced with `"[Summary blocked by content policy]"` rather than silently returned
+- **`requires_irb` enforcement in `approve_plan` (#86):** `approve_plan` now checks `plan.requires_irb` before any other approval logic; plans created without `requires_irb: True` cannot be approved through the IRB pathway, closing the gap where a `pending_approval`-status plan could be approved even if it was not marked for IRB review
+- 25 new security tests in `tools/tests/test_v13_security.py`
+
+### Fixed
+- **DynamoDB tables missing PITR and deletion protection (#83):** `schemas_table` and `watches_table` now have `point_in_time_recovery=True`; all three tables (`plans_table`, `schemas_table`, `watches_table`) have `deletion_protection=True`
+- **Lambda log groups missing retention policy (#84):** All 12 Lambda functions (10 tool + 2 internal) now set `log_retention=RetentionDays.THREE_MONTHS`; CloudWatch log groups no longer accumulate indefinitely
+- **Athena IAM policy wildcard resource (#85):** `tools_stack.py` Athena policy resources changed from `"*"` to the workgroup ARN `arn:aws:athena:{region}:{account}:workgroup/claws-readonly`; Lambda can no longer run queries in any workgroup
+- **OpenSearch error messages exposing cluster internals (#87):** `execute_opensearch()` now returns generic messages for source_id parse failures, JSON decode errors, and search exceptions; raw endpoint URLs, index names, and opensearchpy exception details are logged at DEBUG level only and never returned to callers
+
 ## [0.11.0] - 2026-04-03
 
 ### Added

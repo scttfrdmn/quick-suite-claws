@@ -104,6 +104,63 @@ when {
 };
 
 // ============================================================
+// PLAN.COLUMN_ACCESS — gate plan creation on column visibility
+//
+// When a source has columns tagged visibility=restricted or visibility=phi,
+// the plan tool evaluates this action before building the LLM prompt.
+// Principals without the appropriate role see only public columns.
+//
+// The resource is the source being planned against.
+// context.column_visibility is the highest restriction level present:
+//   "public"     — permit for all principals
+//   "restricted" — permit only with pii_access role
+//   "phi"        — permit only with phi_cleared role (includes pii_access)
+//
+// Note: when a principal lacks access, the plan tool filters restricted/phi
+// columns from the schema before the LLM sees it. This action is evaluated
+// at Gateway to enforce the structural access decision.
+// ============================================================
+permit(
+  principal,
+  action == Action::"plan.column_access",
+  resource
+)
+when {
+  context.column_visibility == "public"
+};
+
+permit(
+  principal,
+  action == Action::"plan.column_access",
+  resource
+)
+when {
+  context.column_visibility == "restricted" &&
+  principal.roles.contains("pii_access")
+};
+
+permit(
+  principal,
+  action == Action::"plan.column_access",
+  resource
+)
+when {
+  context.column_visibility == "phi" &&
+  principal.roles.contains("phi_cleared")
+};
+
+// Deny PHI column access without phi_cleared role
+forbid(
+  principal,
+  action == Action::"plan.column_access",
+  resource
+)
+when {
+  context.column_visibility == "phi" &&
+  !principal.roles.contains("phi_cleared")
+};
+
+// ============================================================
 // TEAM_PLANS — list plans by team_id (read-only)
 // ============================================================
 permit(
@@ -145,6 +202,8 @@ permit(
 )
 when {
   principal.roles.contains("irb_approver") &&
+  resource.requires_irb == true &&
+  resource.status == "pending_approval" &&
   resource.created_by != principal.id
 };
 
