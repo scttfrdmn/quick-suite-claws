@@ -37,6 +37,8 @@ Cedar policies gate the concrete query, not the intent.
 discover → probe → plan → excavate → refine → export
                                                ↓
                                         watch / watches  (v0.7+, persistence)
+                                               ↓
+                                        remember / recall  (v0.17+, memory)
 ```
 
 - `discover` — find sources in approved domains (Glue catalog search)
@@ -47,6 +49,8 @@ discover → probe → plan → excavate → refine → export
 - `export` — materialize to S3/EventBridge with provenance
 - `watch` *(v0.7)* — create/update/delete a scheduled watch on a locked plan
 - `watches` *(v0.7)* — list active watches and last-run status
+- `remember` *(v0.17)* — write structured finding to institutional memory (NDJSON append)
+- `recall` *(v0.17)* — query institutional memory with structural filters
 
 ## Safety layers
 
@@ -183,7 +187,10 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - v0.12.0 security: column-level access control (#61); multi-backend cost estimator (#62); HMAC-SHA-256 audit hashing (#73); MCP source ID validation (#74); mutation detection in DynamoDB + S3 Select executors (#81); refine summary guardrail scan (#82); `requires_irb` enforcement in `approve_plan` (#86); OpenSearch error sanitization (#87); DynamoDB PITR + deletion protection on all tables (#83); Lambda log retention policies (#84); Athena IAM scoped to workgroup ARN (#85)
 - v0.13.0 security: silent guardrail bypass made visible (`bypassed` status + ERROR log) (#77); `validate_source_id()` at handler entry points blocks path traversal and unknown prefixes (#78); OpenSearch DSL script injection blocked via `_check_dsl_scripts()` recursive walk (#76); Cedar `plan.approve` permit requires `requires_irb == true` + `status == "pending_approval"` (#75)
 - v0.14.0 features: plan templating with `{{variable}}` substitution via `instantiate_plan` tool (#66); export destination URI allowlist (`CLAWS_EXPORT_ALLOWED_DESTINATIONS`) + HTTPS enforcement on callback destinations (#80); watch runner plan status check blocks `pending_approval`/`template` plans at execution time (#79)
-- 209 passing tests (substrate integration + pure unit)
+- v0.15.0 proactive intelligence: new_award watch type with semantic matching (#70); action routing (SNS/EventBridge/Bedrock Agent) (#68); accreditation evidence ledger (#67); compliance surface watch (#69)
+- v0.16.0 science literature: literature watch type with per-paper relevance scoring (#71); cross_discipline watch type with open problems gap matching (#72)
+- v0.17.0 institutional memory: `claws.remember` tool with NDJSON append + ETag conditional write (#88); `claws.recall` tool with structural filter pipeline (#89); watch runner auto-remember for literature/cross_discipline watches (#90); one-shot flow trigger via EventBridge Scheduler (#91); memory bucket + registry table + Cedar policies (#92)
+- 445 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
@@ -202,8 +209,11 @@ Released:
 - **v0.12.0** — Security hardening: column-level access control, multi-backend cost estimator, HMAC audit hashing, MCP source validation (#61, #62, #73, #74); mutation detection in DynamoDB + S3 Select, refine summary guardrail scan, `requires_irb` enforcement, OpenSearch error sanitization, DynamoDB PITR + deletion protection, Lambda log retention, Athena IAM scoped to workgroup (issues #81–#87) ✓
 - **v0.13.0** — P1 security fixes: silent guardrail bypass now visible (#77), source_id validation at handler entry (#78), OpenSearch DSL script injection blocked (#76), Cedar plan.approve requires requires_irb + pending_approval (#75) ✓
 - **v0.14.0** — Plan templating with `{{variable}}` placeholders + `instantiate_plan` tool (#66); export destination allowlist + HTTPS enforcement (#80); watch runner plan status check (#79) ✓
+- **v0.15.0** — Proactive intelligence: new_award watch type + semantic matching (#70), action routing (#68), accreditation evidence ledger (#67), compliance surface watch (#69) ✓
+- **v0.16.0** — Science literature watches: living literature watch (#71), cross-discipline signal watch (#72) ✓
+- **v0.17.0** — Institutional memory: `claws.remember` (#88), `claws.recall` (#89), watch runner auto-remember (#90), one-shot flow trigger (#91), memory infra + Cedar (#92) ✓
 
-All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11–v0.13).
+All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11–v0.13). Plus: Intelligence (v0.15–v0.17).
 
 ## Design docs
 
