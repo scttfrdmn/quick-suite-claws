@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-04-09
+
+### Added
+- **PostgreSQL executor (#63):** New `execute_postgres()` executor in `tools/excavate/executors/postgres.py`; read-only SQL via `psycopg2` with connection params from Secrets Manager (`CLAWS_POSTGRES_SECRET_ARN`); `readonly=True` session, 60s statement timeout, mutation detection (INSERT/UPDATE/DELETE/DROP/CREATE/ALTER/TRUNCATE/GRANT/REVOKE); graceful 503 when `psycopg2` not installed; `postgres_sql` query type added to `EXECUTORS` dispatch; `postgres:` source_id prefix registered; cost estimator returns zero (provisioned, no per-query billing)
+- **Redshift executor (#64):** New `execute_redshift()` executor in `tools/excavate/executors/redshift.py`; read-only SQL via Redshift Data API async execute-and-poll pattern (`execute_statement` → `describe_statement` → `get_statement_result`); typed field extraction (stringValue, longValue, doubleValue, booleanValue, isNull); mutation detection; configurable via `CLAWS_REDSHIFT_WORKGROUP` and `CLAWS_REDSHIFT_DATABASE` env vars; `redshift_sql` query type added to `EXECUTORS` dispatch; `redshift:` source_id prefix registered; cost estimator uses $5/TB model with columnar and sort key pruning heuristics
+- **Per-principal budget caps (#65):** Three new helpers in `tools/shared.py` — `get_principal_budget()` (SSM lookup with principal-specific → default fallback), `get_principal_spend()` (DynamoDB monthly spend read), `record_principal_spend()` (DynamoDB atomic ADD); `plan` handler checks budget before LLM invocation (402 on breach); `export` handler records cost after successful export; all fail-open on AWS errors; gated by `CLAWS_ENABLE_PRINCIPAL_BUDGETS` env var; `claws-principal-spend` DynamoDB table (PK: principal_arn, SK: month, PITR, deletion protection, RETAIN); SSM parameter path `/quick-suite/claws/budget/{principal_arn}` and `/quick-suite/claws/budget/default`
+- CDK: `PrincipalSpendTable` in storage stack; `CLAWS_POSTGRES_SECRET_ARN`, `CLAWS_REDSHIFT_WORKGROUP`, `CLAWS_REDSHIFT_DATABASE`, `CLAWS_ENABLE_PRINCIPAL_BUDGETS`, `CLAWS_PRINCIPAL_SPEND_TABLE` env vars in tools stack; IAM grants for Secrets Manager (postgres), Redshift Data API, SSM budget params, DynamoDB principal spend table
+- `psycopg2-binary>=2.9` added to runtime dependencies
+- 18 new tests in `tools/tests/test_v18_backend_coverage.py`: `TestPostgresExecutor` (5), `TestRedshiftExecutor` (5), `TestPrincipalBudget` (8)
+
 ## [0.17.0] - 2026-04-07
 
 ### Added

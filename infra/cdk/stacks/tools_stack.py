@@ -312,6 +312,62 @@ class ClawsToolsStack(cdk.Stack):
             )
             storage_stack.memory_bucket.grant_read(self.functions["recall"])
 
+        # v0.18.0 — PostgreSQL executor (#63)
+        postgres_secret_arn = self.node.try_get_context("postgres_secret_arn") or ""
+        if postgres_secret_arn and "excavate" in self.functions:
+            self.functions["excavate"].add_environment(
+                "CLAWS_POSTGRES_SECRET_ARN", postgres_secret_arn
+            )
+            self.functions["excavate"].add_to_role_policy(iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["secretsmanager:GetSecretValue"],
+                resources=[postgres_secret_arn],
+            ))
+
+        # v0.18.0 — Redshift executor (#64)
+        redshift_workgroup = self.node.try_get_context("redshift_workgroup") or ""
+        redshift_database = self.node.try_get_context("redshift_database") or ""
+        if "excavate" in self.functions:
+            self.functions["excavate"].add_environment(
+                "CLAWS_REDSHIFT_WORKGROUP", redshift_workgroup
+            )
+            self.functions["excavate"].add_environment(
+                "CLAWS_REDSHIFT_DATABASE", redshift_database
+            )
+            if redshift_workgroup:
+                self.functions["excavate"].add_to_role_policy(iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "redshift-data:ExecuteStatement",
+                        "redshift-data:DescribeStatement",
+                        "redshift-data:GetStatementResult",
+                    ],
+                    resources=["*"],
+                ))
+
+        # v0.18.0 — Per-principal budget caps (#65)
+        enable_principal_budgets = self.node.try_get_context("enable_principal_budgets") or ""
+        for tool_name in TOOL_NAMES:
+            if tool_name in self.functions:
+                self.functions[tool_name].add_environment(
+                    "CLAWS_PRINCIPAL_SPEND_TABLE",
+                    storage_stack.principal_spend_table.table_name,
+                )
+        if enable_principal_budgets:
+            for tool_name in TOOL_NAMES:
+                if tool_name in self.functions:
+                    self.functions[tool_name].add_environment(
+                        "CLAWS_ENABLE_PRINCIPAL_BUDGETS", enable_principal_budgets
+                    )
+        storage_stack.principal_spend_table.grant_read_write_data(lambda_role)
+        lambda_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=["ssm:GetParameter"],
+            resources=[
+                f"arn:aws:ssm:{self.region}:{self.account}:parameter/quick-suite/claws/budget/*",
+            ],
+        ))
+
         # SSM export for qs-discover unified discovery Lambda
         if "discover" in self.functions:
             ssm.StringParameter(

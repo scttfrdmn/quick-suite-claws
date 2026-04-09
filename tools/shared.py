@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 
 import boto3
@@ -143,7 +144,7 @@ if not GUARDRAIL_ID:
 # --- source_id validation (#78) ---
 
 _SOURCE_ID_PREFIXES = frozenset(
-    {"athena:", "dynamodb:", "s3:", "opensearch:", "mcp:", "registry:"}
+    {"athena:", "dynamodb:", "s3:", "opensearch:", "mcp:", "registry:", "postgres:", "redshift:"}
 )
 _SOURCE_ID_MAX_LEN = 512
 
@@ -629,6 +630,55 @@ def load_config_from_uri(uri: str) -> dict:
     raise ValueError(
         f"Unsupported config URI scheme: {uri!r}. Use s3://bucket/key or ssm:/param/path"
     )
+
+
+# --- Per-principal budget helpers (v0.18.0 #65) ---
+
+
+def get_principal_budget(principal_arn: str) -> float | None:
+    """Read budget limit from SSM. Returns None on error (fail open)."""
+    try:
+        ssm = ssm_client()
+        # Try principal-specific first
+        try:
+            resp = ssm.get_parameter(Name=f"/quick-suite/claws/budget/{principal_arn}")
+            return float(resp["Parameter"]["Value"])
+        except ssm.exceptions.ParameterNotFound:
+            pass
+        # Fall back to default
+        resp = ssm.get_parameter(Name="/quick-suite/claws/budget/default")
+        return float(resp["Parameter"]["Value"])
+    except Exception as exc:
+        logger.warning("Failed to read budget for %s: %s", principal_arn, exc)
+        return None
+
+
+def get_principal_spend(principal_arn: str, month: str) -> float:
+    """Read current month spend. Returns 0.0 on error (fail open)."""
+    try:
+        table = dynamodb_resource().Table(
+            os.environ.get("CLAWS_PRINCIPAL_SPEND_TABLE", "claws-principal-spend")
+        )
+        resp = table.get_item(Key={"principal_arn": principal_arn, "month": month})
+        return float(resp.get("Item", {}).get("spend_usd", 0.0))
+    except Exception as exc:
+        logger.warning("Failed to read spend for %s/%s: %s", principal_arn, month, exc)
+        return 0.0
+
+
+def record_principal_spend(principal_arn: str, month: str, cost_usd: float) -> None:
+    """Add cost to principal's monthly spend. Best effort."""
+    try:
+        table = dynamodb_resource().Table(
+            os.environ.get("CLAWS_PRINCIPAL_SPEND_TABLE", "claws-principal-spend")
+        )
+        table.update_item(
+            Key={"principal_arn": principal_arn, "month": month},
+            UpdateExpression="ADD spend_usd :cost",
+            ExpressionAttributeValues={":cost": Decimal(str(cost_usd))},
+        )
+    except Exception as exc:
+        logger.warning("Failed to record spend for %s/%s: %s", principal_arn, month, exc)
 
 
 # --- Lambda response helpers ---

@@ -125,6 +125,25 @@ class ClawsStorageStack(cdk.Stack):
             deletion_protection=True,
         )
 
+        # ---------------------------------------------------------------
+        # v0.18.0 — Per-principal budget tracking (#65)
+        # ---------------------------------------------------------------
+        self.principal_spend_table = dynamodb.Table(
+            self,
+            "PrincipalSpendTable",
+            table_name="claws-principal-spend",
+            partition_key=dynamodb.Attribute(
+                name="principal_arn", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="month", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+            deletion_protection=True,
+            point_in_time_recovery=True,
+        )
+
         # Outputs
         cdk.CfnOutput(self, "RunsBucketName", value=self.runs_bucket.bucket_name)
         cdk.CfnOutput(self, "PlansTableName", value=self.plans_table.table_name)
@@ -132,3 +151,4 @@ class ClawsStorageStack(cdk.Stack):
         cdk.CfnOutput(self, "WatchesTableName", value=self.watches_table.table_name)
         cdk.CfnOutput(self, "MemoryBucketName", value=self.memory_bucket.bucket_name)
         cdk.CfnOutput(self, "MemoryRegistryTableName", value=self.memory_registry_table.table_name)
+        cdk.CfnOutput(self, "PrincipalSpendTableName", value=self.principal_spend_table.table_name)

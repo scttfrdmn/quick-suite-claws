@@ -21,6 +21,8 @@ from tools.shared import (
     call_router,
     error,
     get_cached_schema,
+    get_principal_budget,
+    get_principal_spend,
     new_plan_id,
     store_plan,
     success,
@@ -118,6 +120,22 @@ def handler(event: dict, context: Any) -> dict:
     # The filtered schema is passed to the LLM — it cannot generate queries
     # referencing columns it was never shown.
     schema, allowed_columns = _filter_schema_columns(schema, principal_roles)
+
+    # Budget check (v0.18.0 #65)
+    if os.environ.get("CLAWS_ENABLE_PRINCIPAL_BUDGETS"):
+        from datetime import UTC, datetime  # noqa: PLC0415
+
+        month = datetime.now(UTC).strftime("%Y-%m")
+        budget_limit = get_principal_budget(principal)
+        if budget_limit is not None:
+            current_spend = get_principal_spend(principal, month)
+            estimated_cost = body.get("estimated_cost_usd", 0.0)
+            if current_spend + estimated_cost > budget_limit:
+                return error(
+                    f"Monthly budget exceeded: ${current_spend:.2f} spent + "
+                    f"${estimated_cost:.2f} estimated > ${budget_limit:.2f} limit",
+                    status_code=402,
+                )
 
     # Build the prompt
     prompt = _build_plan_prompt(objective, source_id, schema, constraints, query_type)
@@ -321,6 +339,8 @@ def _backend_to_query_type(backend: str) -> str:
         "s3": "s3_select_sql",
         "dynamodb": "dynamodb_partiql",
         "mcp": "mcp_tool",
+        "postgres": "postgres_sql",
+        "redshift": "redshift_sql",
     }.get(backend, "athena_sql")
 
 

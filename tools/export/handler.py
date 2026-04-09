@@ -22,6 +22,7 @@ from tools.shared import (
     error,
     load_result,
     new_export_id,
+    record_principal_spend,
     s3_client,
     scan_payload,
     success,
@@ -154,6 +155,14 @@ def handler(event: dict, context: Any) -> dict:
         response_body["dataset_id"] = result["dataset_id"]
 
     audit_log("export", principal, body, response_body, request_id=request_id)
+
+    # Record cost to principal spend (v0.18.0 #65)
+    if os.environ.get("CLAWS_ENABLE_PRINCIPAL_BUDGETS"):
+        from datetime import UTC, datetime  # noqa: PLC0415
+
+        cost = body.get("cost_usd", 0.0)
+        if cost > 0:
+            record_principal_spend(principal, datetime.now(UTC).strftime("%Y-%m"), cost)
 
     return success(response_body)
 

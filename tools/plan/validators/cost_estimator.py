@@ -45,6 +45,10 @@ def estimate_cost(source_id: str, query: str, schema: dict) -> dict:
         return _estimate_dynamodb(query, schema)
     elif backend == "mcp":
         return _estimate_mcp(query, schema)
+    elif backend == "postgres":
+        return _estimate_postgres(query, schema)
+    elif backend == "redshift":
+        return _estimate_redshift(query, schema)
     else:
         return {
             "estimated_bytes_scanned": 0,
@@ -184,4 +188,68 @@ def _estimate_mcp(query: str, schema: dict) -> dict:
             "MCP tool calls have no per-call AWS cost. "
             "External MCP server pricing depends on the server provider."
         ),
+    }
+
+
+def _estimate_postgres(query: str, schema: dict) -> dict:
+    """Estimate PostgreSQL query cost.
+
+    PostgreSQL (RDS/Aurora) is provisioned — queries have no per-query
+    billing. Cost is covered by instance hours.
+    """
+    return {
+        "estimated_bytes_scanned": 0,
+        "estimated_cost_dollars": 0.0,
+        "confidence": "high",
+        "notes": "PostgreSQL has no per-query billing",
+    }
+
+
+def _estimate_redshift(query: str, schema: dict) -> dict:
+    """Estimate Redshift Serverless query cost using the same $5/TB model as Athena."""
+    table_size = int(schema.get("size_bytes_estimate", 0))
+    if table_size == 0:
+        return {
+            "estimated_bytes_scanned": ATHENA_MIN_BYTES,
+            "estimated_cost_dollars": ATHENA_MIN_BYTES * ATHENA_PRICE_PER_BYTE,
+            "confidence": "low",
+            "notes": "Table size unknown. Using minimum charge estimate.",
+        }
+
+    estimated_bytes = table_size
+    confidence = "medium"
+    notes = []
+
+    # Check for partition pruning (sort keys in Redshift)
+    partition_keys = [
+        col["name"] for col in schema.get("columns", [])
+        if col.get("partition_key") or col.get("sort_key")
+    ]
+
+    query_upper = query.upper()
+    partitions_used = []
+    for pk in partition_keys:
+        if pk.upper() in query_upper:
+            partitions_used.append(pk)
+
+    if partitions_used:
+        reduction = 0.1 ** len(partitions_used)
+        estimated_bytes = max(int(table_size * reduction), ATHENA_MIN_BYTES)
+        notes.append(f"Sort key pruning on: {', '.join(partitions_used)}")
+
+    # Columnar storage — Redshift always uses columnar
+    total_cols = len(schema.get("columns", []))
+    if total_cols > 0:
+        col_ratio = 0.3
+        estimated_bytes = int(estimated_bytes * col_ratio)
+        notes.append("Columnar storage — reduced by column pruning")
+
+    estimated_bytes = max(estimated_bytes, ATHENA_MIN_BYTES)
+    estimated_cost = estimated_bytes * ATHENA_PRICE_PER_BYTE
+
+    return {
+        "estimated_bytes_scanned": estimated_bytes,
+        "estimated_cost_dollars": round(estimated_cost, 4),
+        "confidence": confidence,
+        "notes": "; ".join(notes) if notes else "Full scan estimate",
     }
