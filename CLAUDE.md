@@ -190,7 +190,8 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 - v0.15.0 proactive intelligence: new_award watch type with semantic matching (#70); action routing (SNS/EventBridge/Bedrock Agent) (#68); accreditation evidence ledger (#67); compliance surface watch (#69)
 - v0.16.0 science literature: literature watch type with per-paper relevance scoring (#71); cross_discipline watch type with open problems gap matching (#72)
 - v0.17.0 institutional memory: `claws.remember` tool with NDJSON append + ETag conditional write (#88); `claws.recall` tool with structural filter pipeline (#89); watch runner auto-remember for literature/cross_discipline watches (#90); one-shot flow trigger via EventBridge Scheduler (#91); memory bucket + registry table + Cedar policies (#92)
-- 445 passing tests (substrate integration + pure unit)
+- v0.18.0 backend coverage: PostgreSQL executor via psycopg2 (#63); Redshift executor via Data API (#64); per-principal monthly budget caps with SSM limits + DynamoDB spend tracking (#65)
+- 455 passing tests (substrate integration + pure unit)
 
 ## Work tracking
 
@@ -212,8 +213,9 @@ Released:
 - **v0.15.0** — Proactive intelligence: new_award watch type + semantic matching (#70), action routing (#68), accreditation evidence ledger (#67), compliance surface watch (#69) ✓
 - **v0.16.0** — Science literature watches: living literature watch (#71), cross-discipline signal watch (#72) ✓
 - **v0.17.0** — Institutional memory: `claws.remember` (#88), `claws.recall` (#89), watch runner auto-remember (#90), one-shot flow trigger (#91), memory infra + Cedar (#92) ✓
+- **v0.18.0** — Backend coverage: PostgreSQL executor (#63), Redshift executor (#64), per-principal monthly budget caps (#65) ✓
 
-All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11–v0.13). Plus: Intelligence (v0.15–v0.17).
+All four roadmap themes complete: Safety (v0.4–v0.6), Extensibility (v0.7–v0.8), Observability (v0.9), and Compliance (v0.11–v0.13). Plus: Intelligence (v0.15–v0.17), Backend Coverage (v0.18).
 
 ## Design docs
 
