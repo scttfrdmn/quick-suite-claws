@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning 2.0.0](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-04-07
+
+### Added
+- `claws.remember` AgentCore tool: writes structured findings to institutional memory at `s3://claws-memory-{account_id}/{account_id}/{user_arn_hash}/findings.jsonl`; ETag conditional write prevents concurrent data loss (up to 3 retries); first write triggers `register-memory-source` Lambda to register as QuickSight SPICE dataset; fields: subject, fact, confidence, tags, severity, expires_days; Cedar policy: resource.owner == principal.id (#88)
+- `claws.recall` AgentCore tool: queries memory NDJSON by substring match, tags (any-match), since_days, severity, expiry filter; returns {records, total, filtered}; team sharing mirrors plan-sharing model (#89)
+- Watch runner memory integration: optional `memory_config` field on watch spec (`auto_remember`, `severity`, `subject_template`, `expires_days`); literature and cross_discipline watches default to auto_remember=true; `_remember_finding()` helper invokes remember Lambda best-effort (non-blocking); `last_remembered_at` tracked in watch spec (#90)
+- One-shot flow trigger: optional `flow_config` field on watch spec (`flow_id`, `delay_minutes`, `input`); creates EventBridge Scheduler `at()` schedule post-memory-write; `ActionAfterCompletion=DELETE`; targets `quicksight:StartAutomationJob`; `ClawsFlowTriggerRole` IAM role; best-effort (non-blocking); `last_flow_triggered_at` tracked (#91)
+- Memory infrastructure: `claws-memory-{account_id}` S3 bucket (versioned, SSE-S3, RETAIN); `claws-memory-registry` DynamoDB table (user_arn_hash + dataset_type keys, deletion protection, PITR); env vars: `CLAWS_MEMORY_BUCKET`, `CLAWS_MEMORY_REGISTRY_TABLE`, `MEMORY_REGISTRAR_ARN`, `REMEMBER_LAMBDA_ARN`, `FLOW_TRIGGER_ROLE_ARN` (#92)
+- Cedar policies: `claws.remember` (resource.owner == principal.id) and `claws.recall` (owner or shared_with) (#92)
+- 20 new tests in `tools/tests/test_v17_memory.py`
+
 ## [0.16.0] - 2026-04-07
 
 ### Added

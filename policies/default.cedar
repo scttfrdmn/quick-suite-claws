@@ -281,3 +281,33 @@ permit(
 when {
   principal.roles.contains("lab_director")
 };
+
+// ============================================================
+// CLAWS.REMEMBER — write findings to institutional memory store
+//
+// Principals may write memory records only for resources they own.
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.remember",
+  resource
+)
+when {
+  resource.owner == principal.id
+};
+
+// ============================================================
+// CLAWS.RECALL — query institutional memory store
+//
+// Principals may read their own records or records explicitly
+// shared with them (mirrors plan-sharing model).
+// ============================================================
+permit(
+  principal,
+  action == Action::"claws.recall",
+  resource
+)
+when {
+  resource.owner == principal.id ||
+  principal.id in resource.shared_with
+};

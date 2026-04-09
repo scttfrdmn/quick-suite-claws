@@ -34,6 +34,115 @@ from tools.shared import (
 # Maximum consecutive executor errors before a watch is paused
 MAX_CONSECUTIVE_ERRORS = int(os.environ.get("CLAWS_WATCH_MAX_ERRORS", "3"))
 
+
+def _remember_finding(
+    watch: dict,
+    watch_id: str,
+    run_id: str,
+    diff_summary: dict | None,
+    literature_matches: list,
+) -> str | None:
+    """Invoke remember Lambda best-effort. Returns memory_id or None on failure."""
+    remember_arn = os.environ.get("REMEMBER_LAMBDA_ARN", "")
+    if not remember_arn:
+        return None
+
+    memory_cfg = watch.get("memory_config", {})
+    subject_tmpl = memory_cfg.get("subject_template", "Watch {watch_id} triggered")
+    subject = (
+        subject_tmpl
+        .replace("{watch_id}", watch_id)
+        .replace("{relevance_type}", (
+            literature_matches[0].get("relevance_type", "") if literature_matches else ""
+        ))
+        .replace("{paper_title}", (
+            literature_matches[0].get("title", "") if literature_matches else ""
+        ))
+    )
+
+    if diff_summary and isinstance(diff_summary, dict):
+        fact = diff_summary.get("summary", str(diff_summary))[:500]
+    elif literature_matches:
+        first = literature_matches[0]
+        fact = first.get("abstract_text", first.get("title", ""))[:500]
+    else:
+        fact = f"Watch {watch_id} fired during run {run_id}"
+
+    payload = {
+        "subject": subject or f"Watch {watch_id}",
+        "fact": fact,
+        "confidence": float(memory_cfg.get("confidence", 0.8)),
+        "tags": memory_cfg.get("tags", ["watch", watch.get("type", "alert")]),
+        "source_plan_id": watch.get("plan_id", ""),
+        "severity": memory_cfg.get("severity", "info"),
+        "expires_days": int(memory_cfg.get("expires_days", 365)),
+        "user_arn_hash": watch.get("user_arn_hash", ""),
+        "account_id": watch.get("account_id", ""),
+    }
+    try:
+        resp = boto3.client("lambda").invoke(
+            FunctionName=remember_arn,
+            InvocationType="RequestResponse",
+            Payload=json.dumps(payload).encode(),
+        )
+        result = json.loads(resp["Payload"].read())
+        body = result.get("body")
+        if isinstance(body, str):
+            body = json.loads(body)
+        return body.get("memory_id") if isinstance(body, dict) else None
+    except Exception as exc:
+        logging.warning(json.dumps({
+            "msg": "remember: invocation failed (non-blocking)",
+            "watch_id": watch_id,
+            "error": str(exc),
+        }))
+        return None
+
+
+def _trigger_flow(watch: dict, watch_id: str, run_id: str, now: str) -> None:
+    """Create a one-shot EventBridge Scheduler schedule for Quick Flow execution. Best-effort."""
+    flow_trigger_role = os.environ.get("FLOW_TRIGGER_ROLE_ARN", "")
+    if not flow_trigger_role:
+        return
+
+    cfg = watch.get("flow_config", {})
+    flow_id = cfg.get("flow_id", "")
+    if not flow_id:
+        return
+
+    import datetime as _dt  # noqa: PLC0415
+
+    delay_minutes = int(cfg.get("delay_minutes", 0))
+    try:
+        target_dt = _dt.datetime.fromisoformat(now.replace("Z", "+00:00"))
+        target_dt += _dt.timedelta(minutes=delay_minutes)
+        target_iso = target_dt.strftime("%Y-%m-%dT%H:%M:%S")
+        schedule_name = f"claws-flow-{watch_id}-{run_id[:8]}"
+        account_id = watch.get("account_id", "")
+
+        boto3.client("scheduler").create_schedule(
+            Name=schedule_name,
+            GroupName="claws-watches",
+            ScheduleExpression=f"at({target_iso})",
+            FlexibleTimeWindow={"Mode": "OFF"},
+            ActionAfterCompletion="DELETE",
+            Target={
+                "Arn": "arn:aws:scheduler:::aws-sdk:quicksight:startAutomationJob",
+                "RoleArn": flow_trigger_role,
+                "Input": json.dumps({
+                    "AwsAccountId": account_id,
+                    "AutomationJobType": "DATASET_REFRESH",
+                    "DataSetId": cfg.get("input", {}).get("dataset_id", flow_id),
+                }),
+            },
+        )
+    except Exception as exc:
+        logging.warning(json.dumps({
+            "msg": "flow_trigger: scheduler create failed (non-blocking)",
+            "watch_id": watch_id,
+            "error": str(exc),
+        }))
+
 # Cap on awards scored per new_award watch run (prevents runaway Router spend)
 _NEW_AWARD_MAX_ROWS = 50
 
@@ -688,6 +797,30 @@ def handler(event: dict, context: Any) -> dict:
     if triggered and watch.get("action_routing"):
         _run_action_routing(watch, rows, diff_summary, run_id)
 
+    # --- Memory integration (#90) ---
+    last_remembered_at = watch.get("last_remembered_at")
+    if triggered:
+        _memory_cfg = watch.get("memory_config")
+        # Default auto_remember for literature/cross_discipline watches
+        if _memory_cfg is None and watch_type in ("literature", "cross_discipline"):
+            _memory_cfg = {"auto_remember": True, "severity": "info"}
+        if _memory_cfg and _memory_cfg.get("auto_remember"):
+            _did_remember = _remember_finding(
+                watch,
+                watch_id,
+                run_id,
+                diff_summary,
+                literature_matches if watch_type == "literature" else [],
+            )
+            if _did_remember:
+                last_remembered_at = now
+
+    # --- One-shot flow trigger (#91) ---
+    last_flow_triggered_at = watch.get("last_flow_triggered_at")
+    if triggered and watch.get("flow_config", {}).get("flow_id"):
+        _trigger_flow(watch, watch_id, run_id, now)
+        last_flow_triggered_at = now
+
     # Accreditation evidence evaluation
     accreditation_gaps: list = []
     if watch.get("accreditation_config_uri"):
@@ -704,6 +837,8 @@ def handler(event: dict, context: Any) -> dict:
         "last_triggered_at": triggered_at,
         "consecutive_errors": 0,
         "status": "active",
+        "last_remembered_at": last_remembered_at,
+        "last_flow_triggered_at": last_flow_triggered_at,
     }
     if feed_result_uri:
         watch_updates["feed_result_uri"] = feed_result_uri

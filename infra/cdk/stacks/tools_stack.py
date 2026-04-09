@@ -13,10 +13,10 @@ from aws_cdk import (
     aws_lambda as _lambda,
 )
 from aws_cdk import (
-    aws_secretsmanager as secretsmanager,
+    aws_logs as logs,
 )
 from aws_cdk import (
-    aws_logs as logs,
+    aws_secretsmanager as secretsmanager,
 )
 from aws_cdk import (
     aws_ssm as ssm,
@@ -47,6 +47,7 @@ TOOL_NAMES = [
     "discover", "probe", "plan", "excavate", "refine", "export",
     "watch", "watches",
     "team_plans", "share_plan",  # v0.10 collaboration tools
+    "remember", "recall",  # v0.17 memory tools
 ]
 
 # Internal Lambdas — not registered as AgentCore tools but deployed in the same stack
@@ -282,6 +283,34 @@ class ClawsToolsStack(cdk.Stack):
                 actions=["events:PutEvents"],
                 resources=["*"],
             ))
+
+        # v0.17.0 memory tools: inject env vars and grant IAM
+        memory_registrar_arn = self.node.try_get_context("memory_registrar_arn") or ""
+        if "remember" in self.functions:
+            self.functions["remember"].add_environment(
+                "CLAWS_MEMORY_BUCKET", storage_stack.memory_bucket.bucket_name
+            )
+            self.functions["remember"].add_environment(
+                "CLAWS_MEMORY_REGISTRY_TABLE", storage_stack.memory_registry_table.table_name
+            )
+            if memory_registrar_arn:
+                self.functions["remember"].add_environment(
+                    "MEMORY_REGISTRAR_ARN", memory_registrar_arn
+                )
+            storage_stack.memory_bucket.grant_read_write(self.functions["remember"])
+            storage_stack.memory_registry_table.grant_read_write_data(self.functions["remember"])
+            self.functions["remember"].add_to_role_policy(iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["lambda:InvokeFunction"],
+                resources=["*"],
+                conditions={"StringLike": {"lambda:FunctionArn": "*registrar*"}},
+            ))
+
+        if "recall" in self.functions:
+            self.functions["recall"].add_environment(
+                "CLAWS_MEMORY_BUCKET", storage_stack.memory_bucket.bucket_name
+            )
+            storage_stack.memory_bucket.grant_read(self.functions["recall"])
 
         # SSM export for qs-discover unified discovery Lambda
         if "discover" in self.functions:

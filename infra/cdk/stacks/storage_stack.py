@@ -94,8 +94,41 @@ class ClawsStorageStack(cdk.Stack):
             deletion_protection=True,
         )
 
+        # ---------------------------------------------------------------
+        # v0.17.0 — Memory infrastructure (#92)
+        # ---------------------------------------------------------------
+        # S3 bucket for institutional memory NDJSON files (one file per user)
+        self.memory_bucket = s3.Bucket(
+            self,
+            "MemoryBucket",
+            bucket_name=f"claws-memory-{cdk.Aws.ACCOUNT_ID}",
+            removal_policy=RemovalPolicy.RETAIN,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            versioned=True,
+        )
+
+        # DynamoDB table tracking registered QuickSight dataset IDs per user
+        self.memory_registry_table = dynamodb.Table(
+            self,
+            "MemoryRegistryTable",
+            table_name="claws-memory-registry",
+            partition_key=dynamodb.Attribute(
+                name="user_arn_hash", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="dataset_type", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.RETAIN,
+            point_in_time_recovery=True,
+            deletion_protection=True,
+        )
+
         # Outputs
         cdk.CfnOutput(self, "RunsBucketName", value=self.runs_bucket.bucket_name)
         cdk.CfnOutput(self, "PlansTableName", value=self.plans_table.table_name)
         cdk.CfnOutput(self, "SchemasTableName", value=self.schemas_table.table_name)
         cdk.CfnOutput(self, "WatchesTableName", value=self.watches_table.table_name)
+        cdk.CfnOutput(self, "MemoryBucketName", value=self.memory_bucket.bucket_name)
+        cdk.CfnOutput(self, "MemoryRegistryTableName", value=self.memory_registry_table.table_name)
