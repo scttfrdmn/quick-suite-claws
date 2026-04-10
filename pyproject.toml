@@ -3,8 +3,8 @@ requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "claws"
-version = "0.4.0"
+name = "quick-suite-claws"
+version = "0.18.0"
 description = "Controlled excavation tools for agents on Amazon Bedrock AgentCore"
 readme = "README.md"
 license = "Apache-2.0"

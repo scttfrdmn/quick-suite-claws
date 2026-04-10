@@ -86,12 +86,20 @@ claws/
 │   │   └── validators/           # sql_validator.py, cost_estimator.py
 │   ├── excavate/                 # Query execution
 │   │   ├── handler.py            # Plan-linked execution + result scanning
-│   │   └── executors/            # athena.py, opensearch.py, s3_select.py, mcp.py
+│   │   └── executors/            # athena.py, opensearch.py, s3_select.py, mcp.py,
+│   │                             # dynamodb.py, postgres.py, redshift.py
 │   ├── mcp/                      # MCP registry + async client bridge
 │   │   ├── registry.py           # Server config from env/S3
 │   │   └── client.py             # asyncio.run() bridge for Lambda
 │   ├── refine/handler.py         # Dedupe, rank, summarize with grounding
 │   ├── export/handler.py         # S3/EventBridge export with provenance
+│   ├── team_plans/handler.py     # (v0.10) List team plans
+│   ├── share_plan/handler.py     # (v0.10) Share plan with principals
+│   ├── instantiate_plan/handler.py # (v0.14) Template instantiation
+│   ├── approve_plan/handler.py   # (v0.11) IRB approval (internal)
+│   ├── audit_export/handler.py   # (v0.11) HMAC audit export (internal)
+│   ├── remember/handler.py       # (v0.17) Institutional memory write
+│   ├── recall/handler.py         # (v0.17) Institutional memory query
 │   ├── watch/                    # (v0.7) Scheduled watch CRUD + runner
 │   ├── watches/                  # (v0.7) List/status tool
 │   └── tests/
@@ -131,7 +139,7 @@ claws/
 ## Testing
 
 ```bash
-# Run all tests — 209 passing, no AWS credentials required
+# Run all tests — 455 passing, no AWS credentials required
 uv run pytest tools/ -v
 
 # Lint and format
@@ -196,7 +204,7 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 ## Work tracking
 
 Work is tracked in GitHub — see milestones and issues at
-https://github.com/scttfrdmn/claws/milestones
+https://github.com/scttfrdmn/quick-suite-claws/milestones
 
 Released:
 - **v0.4.1** — OpenSearch aggregation flattening + executor tests ✓
