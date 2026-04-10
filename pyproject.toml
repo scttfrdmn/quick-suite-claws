@@ -28,6 +28,8 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "mypy>=1.10",
+    "pip-audit>=2.7",
+    "cfn-lint>=1.0",
     # pytest-substrate installed from ~/src/substrate/python after substrate build in CI
 ]
 
