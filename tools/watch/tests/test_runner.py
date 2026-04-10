@@ -2,7 +2,6 @@
 
 import json
 import time
-from unittest.mock import patch
 
 import pytest
 
@@ -13,6 +12,12 @@ from tools.watch.runner import handler
 @pytest.fixture()
 def aws_resources(s3_bucket, plans_table, watches_table):
     return s3_bucket, plans_table, watches_table
+
+
+@pytest.fixture(autouse=True)
+def _isolate_executors(monkeypatch):
+    """Replace EXECUTORS on the runner module so tests don't hit real backends."""
+    monkeypatch.setattr("tools.watch.runner.EXECUTORS", {})
 
 
 def _seed(watch_id, plan_id, source_id, condition=None, status="active",
@@ -49,69 +54,69 @@ _MOCK_EMPTY = {"status": "complete", "rows": [], "bytes_scanned": 0, "cost": "$0
 
 
 class TestWatchRunner:
-    def test_condition_gt_fires(self, aws_resources):
+    def test_condition_gt_fires(self, aws_resources, monkeypatch):
         _seed("watch-run00001", "plan-run00001", "athena:db.t",
               condition={"field": "n", "operator": "gt", "threshold": 100})
 
-        with patch.dict("tools.watch.runner.EXECUTORS",
-                        {"athena_sql": lambda **kw: _MOCK_RESULT_10}):
-            result = handler({"watch_id": "watch-run00001"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS",
+                            {"athena_sql": lambda **kw: _MOCK_RESULT_10})
+        result = handler({"watch_id": "watch-run00001"}, None)
 
         assert result["status"] == "complete"
         assert result["triggered"] is True
 
-    def test_condition_gt_does_not_fire(self, aws_resources):
+    def test_condition_gt_does_not_fire(self, aws_resources, monkeypatch):
         _seed("watch-run00002", "plan-run00002", "athena:db.t",
               condition={"field": "n", "operator": "gt", "threshold": 100})
 
-        with patch.dict("tools.watch.runner.EXECUTORS",
-                        {"athena_sql": lambda **kw: _MOCK_RESULT_LOW}):
-            result = handler({"watch_id": "watch-run00002"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS",
+                            {"athena_sql": lambda **kw: _MOCK_RESULT_LOW})
+        result = handler({"watch_id": "watch-run00002"}, None)
 
         assert result["status"] == "complete"
         assert result["triggered"] is False
 
-    def test_no_condition_always_fires(self, aws_resources):
+    def test_no_condition_always_fires(self, aws_resources, monkeypatch):
         """Watch without condition always fires notification."""
         _seed("watch-run00003", "plan-run00003", "athena:db.t")
 
-        with patch.dict("tools.watch.runner.EXECUTORS",
-                        {"athena_sql": lambda **kw: _MOCK_EMPTY}):
-            result = handler({"watch_id": "watch-run00003"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS",
+                            {"athena_sql": lambda **kw: _MOCK_EMPTY})
+        result = handler({"watch_id": "watch-run00003"}, None)
 
         assert result["triggered"] is True
 
-    def test_audit_log_principal(self, aws_resources, capsys):
+    def test_audit_log_principal(self, aws_resources, monkeypatch, capsys):
         _seed("watch-run00004", "plan-run00004", "athena:db.t")
 
-        with patch.dict("tools.watch.runner.EXECUTORS",
-                        {"athena_sql": lambda **kw: _MOCK_EMPTY}):
-            handler({"watch_id": "watch-run00004"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS",
+                            {"athena_sql": lambda **kw: _MOCK_EMPTY})
+        handler({"watch_id": "watch-run00004"}, None)
 
         logs = capsys.readouterr().out
         record = json.loads(logs.strip().splitlines()[-1])
         assert record.get("principal") == "watch-scheduler"
         assert record["outputs"].get("watch_id") == "watch-run00004"
 
-    def test_last_run_updated(self, aws_resources):
+    def test_last_run_updated(self, aws_resources, monkeypatch):
         _seed("watch-run00005", "plan-run00005", "athena:db.t")
 
-        with patch.dict("tools.watch.runner.EXECUTORS",
-                        {"athena_sql": lambda **kw: _MOCK_EMPTY}):
-            result = handler({"watch_id": "watch-run00005"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS",
+                            {"athena_sql": lambda **kw: _MOCK_EMPTY})
+        result = handler({"watch_id": "watch-run00005"}, None)
 
         updated = load_watch("watch-run00005")
         assert updated["last_run_id"] == result["run_id"]
         assert updated["last_run_at"] is not None
 
-    def test_runner_sets_errored_on_executor_failure(self, aws_resources):
+    def test_runner_sets_errored_on_executor_failure(self, aws_resources, monkeypatch):
         _seed("watch-run00006", "plan-run00006", "athena:db.t")
 
         def _fail(**kw):
             raise RuntimeError("executor exploded")
 
-        with patch.dict("tools.watch.runner.EXECUTORS", {"athena_sql": _fail}):
-            result = handler({"watch_id": "watch-run00006"}, None)
+        monkeypatch.setattr("tools.watch.runner.EXECUTORS", {"athena_sql": _fail})
+        result = handler({"watch_id": "watch-run00006"}, None)
 
         assert result["status"] == "error"
         updated = load_watch("watch-run00006")
