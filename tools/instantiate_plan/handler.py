@@ -13,7 +13,6 @@ from tools.shared import (
     audit_log,
     error,
     load_plan,
-    success,
 )
 
 # Pattern matching {{variable_name}} placeholders

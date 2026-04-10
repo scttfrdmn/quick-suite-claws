@@ -10,7 +10,6 @@ import json
 import os
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # #79 — Watch runner plan status check
 # ---------------------------------------------------------------------------
@@ -152,6 +151,7 @@ class TestExportDestinationAllowlist:
         with patch.dict(os.environ, {"CLAWS_EXPORT_ALLOWED_DESTINATIONS": allowlist}):
             # Re-import to pick up env var (module-level constant)
             import importlib
+
             import tools.export.handler as exp_mod
             importlib.reload(exp_mod)
             return exp_mod._validate_destination_uri(dest_type, dest_uri)
@@ -204,6 +204,7 @@ class TestExportDestinationAllowlist:
     def test_handler_returns_error_when_destination_blocked(self):
         """Export handler propagates allowlist rejection to caller."""
         import importlib
+
         import tools.export.handler as exp_mod
         with patch.dict(os.environ, {"CLAWS_EXPORT_ALLOWED_DESTINATIONS": "s3://safe-bucket/"}):
             importlib.reload(exp_mod)
@@ -277,6 +278,7 @@ class TestPlanHandlerTemplate:
 
     def _call(self, extra_body: dict | None = None):
         import importlib
+
         import tools.plan.handler as plan_mod
         importlib.reload(plan_mod)
 
@@ -331,6 +333,7 @@ class TestPlanHandlerTemplate:
 
     def test_no_llm_invoked(self):
         import importlib
+
         import tools.plan.handler as plan_mod
         importlib.reload(plan_mod)
 
@@ -354,6 +357,7 @@ class TestExcavateBlocksTemplatePlans:
 
     def test_template_plan_returns_template_status(self):
         import importlib
+
         import tools.excavate.handler as exc_mod
         importlib.reload(exc_mod)
 
@@ -389,6 +393,7 @@ class TestInstantiatePlan:
     def _call_instantiate(self, template_plan: dict, values: dict,
                            plan_result: dict | None = None) -> dict:
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
 
@@ -445,6 +450,7 @@ class TestInstantiatePlan:
 
     def test_rejects_non_template_plan(self):
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
         non_template = {**self._make_template(), "status": "ready", "query": "SELECT 1"}
@@ -457,6 +463,7 @@ class TestInstantiatePlan:
 
     def test_rejects_missing_plan(self):
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
         with patch.object(ip_mod, "load_plan", return_value=None):
@@ -468,6 +475,7 @@ class TestInstantiatePlan:
 
     def test_rejects_missing_plan_id(self):
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
         result = ip_mod.handler({"values": {}}, None)
@@ -478,6 +486,7 @@ class TestInstantiatePlan:
 
     def test_rejects_missing_variable(self):
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
         template = self._make_template("Find {{disease}} and {{lab_test}} patients")
@@ -494,6 +503,7 @@ class TestInstantiatePlan:
 
     def test_rejects_nested_template_injection(self):
         import importlib
+
         import tools.instantiate_plan.handler as ip_mod
         importlib.reload(ip_mod)
         template = self._make_template("Find {{disease}} patients")
@@ -514,8 +524,5 @@ class TestInstantiatePlan:
             {"disease": "diabetes"},
         )
         # Should not be an error response
-        if isinstance(result.get("body"), str):
-            body = json.loads(result["body"])
-        else:
-            body = result
+        body = json.loads(result["body"]) if isinstance(result.get("body"), str) else result
         assert "error" not in body or body.get("plan_id") is not None
