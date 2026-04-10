@@ -22,7 +22,7 @@ class ClawsStorageStack(cdk.Stack):
             self, "RunsBucket",
             bucket_name=f"claws-runs-{cdk.Aws.ACCOUNT_ID}",
             removal_policy=RemovalPolicy.RETAIN,
-            encryption=s3.BucketEncryption.S3_MANAGED,
+            encryption=s3.BucketEncryption.KMS_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             lifecycle_rules=[
                 s3.LifecycleRule(
@@ -39,7 +39,7 @@ class ClawsStorageStack(cdk.Stack):
             self, "AthenaResultsBucket",
             bucket_name=f"claws-athena-results-{cdk.Aws.ACCOUNT_ID}",
             removal_policy=RemovalPolicy.RETAIN,
-            encryption=s3.BucketEncryption.S3_MANAGED,
+            encryption=s3.BucketEncryption.KMS_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             lifecycle_rules=[
                 s3.LifecycleRule(
@@ -103,7 +103,7 @@ class ClawsStorageStack(cdk.Stack):
             "MemoryBucket",
             bucket_name=f"claws-memory-{cdk.Aws.ACCOUNT_ID}",
             removal_policy=RemovalPolicy.RETAIN,
-            encryption=s3.BucketEncryption.S3_MANAGED,
+            encryption=s3.BucketEncryption.KMS_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             versioned=True,
         )
