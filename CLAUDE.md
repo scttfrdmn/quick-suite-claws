@@ -204,7 +204,7 @@ Config in `pyproject.toml`. Line length 100. Target Python 3.12.
 ## Work tracking
 
 Work is tracked in GitHub — see milestones and issues at
-https://github.com/scttfrdmn/quick-suite-claws/milestones
+https://github.com/scttfrdmn/campus-claws/milestones
 
 Released:
 - **v0.4.1** — OpenSearch aggregation flattening + executor tests ✓
